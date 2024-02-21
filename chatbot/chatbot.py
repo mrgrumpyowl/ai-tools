@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import threading
+import tiktoken
+import time
+import datetime
+
+from openai import OpenAI
+
+from prompt_toolkit import prompt
+from prompt_toolkit import print_formatted_text
+from prompt_toolkit.formatted_text import HTML
+
+from rich import print
+from rich.markdown import Markdown
+from rich.rule import Rule
+
+
+def get_user_input() -> str:
+    # Display the prompt to the user for multiline input.
+    # The user can press Esc followed by Enter to submit their input.
+    text = HTML('<u><style fg="ansiblue">User:</style></u>')
+    user_input = prompt(print_formatted_text(text), multiline=True)
+    return user_input
+
+def detect_file_analysis_request(content: str) -> (bool, str):
+    # Detects if the user is asking for a file analysis and extracts the file path.
+    if content.startswith("Upload:"):
+        file_path = content[len("Upload: "):].strip()
+        file_path = os.path.expanduser(file_path)
+        return True, file_path
+    return False, ""
+
+def read_file_contents(file_path: str) -> (str, str, int):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            file_name = os.path.basename(file_path)
+            file_contents = file.read()
+            if not file_contents:
+                return file_name, False, 0
+            token_count = estimate_token_count(file_contents)
+            if token_count > 64000:
+                return file_name, f"FILE TOO BIG.", token_count
+            return file_name, file_contents, token_count
+    except Exception as e:
+        print(f"\nError reading file: {e}")
+        return "", f'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
+
+def estimate_token_count(content: str) -> int:
+    """Returns the number of tokens in a text string."""
+    encoding = tiktoken.encoding_for_model("gpt-4")
+    num_tokens = len(encoding.encode(content))
+    return num_tokens
+
+def should_exit(content: str) -> bool:
+    return content.lower() == "exit"
+
+def append_message(messages: list, role: str, content: str):
+    messages.append({"role": role, "content": content})
+
+def spinner():
+    spinner_chars = "|/-\\"
+    while not spinner_stop:
+        for char in spinner_chars:
+            sys.stdout.write(char)
+            sys.stdout.flush()
+            time.sleep(0.1)
+            sys.stdout.write("\b")
+
+def main():
+    try:
+        client = OpenAI()
+
+        now = datetime.datetime.now()
+        local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
+        local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
+
+        messages = [
+            {
+                "role": "system",
+                "content": (f"You are a helpful AI assistant. Today is {local_date}. Local time is {local_time}. "
+                            f"You answer queries succinctly, avoiding preamble and summaries whenever possible. "
+                            f"You answer queries at a high language level and with expert level knowledge. "
+                            f"Avoid responses that comment on the limitations of your model. You provide full, "
+                            f"detailed answers. You behave like a passionate expert who always takes a clear "
+                            f"stance on any topic discussed. - Be excellent at reasoning - When reasoning, take "
+                            f"a deep breath and think step by step before you answer the question. You do not make "
+                            f"your answers artificially shorter to fit within a response word limit. If your full, "
+                            f"considered response would be constrained by the output token limit of your model (4096), "
+                            f"you will continue your answer in the next response, prompting the user with "
+                            f"\"Shall I continue?\".")
+            }
+        ]
+        
+        welcome = (
+"""
+You're now chatting with GPT-4.
+The user prompt handles multiline input, so Enter gives a newline.
+You can pass utf-8 encoded files to GPT-4 by entering "Upload: ~/path/to/file_name"
+To submit your prompt to GPT-4 hit Esc -> Enter.
+To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
+"""
+        )
+
+        print(f"[bold blue]{welcome}[/]")
+        
+        while True:
+            content = get_user_input()
+
+            if should_exit(content):
+                break
+
+            is_file_request, file_path = detect_file_analysis_request(content)
+            if is_file_request:
+                file_name, file_contents, token_count = read_file_contents(file_path)
+                if file_contents == "FILE TOO BIG.":
+                    print(f"\nThe file: {file_name} is too large to upload because it is likely larger than 64,000 tokens.\n"
+                          f"Estimated token count for this file: {token_count}\n")
+                elif file_contents:
+                    analysis_request = (f"Please analyse the contents of the following file:\n"
+                                        f"\n{file_name}\n"
+                                        f"\n{file_contents}\n"
+                                        f"\nEnd your response by asking the user what questions they have about the file.")
+                    append_message(messages, "user", analysis_request)
+                    print(f"\nEstimated token count for this file: {token_count}\n")
+                else:
+                    print_formatted_text(HTML(f"\nThe file: {file_name} is empty.\n"))
+                    print(f"Estimated token count for this file: {token_count}\n")
+                    continue
+            else:
+                append_message(messages, "user", content)
+
+            stream = client.chat.completions.create(
+                model="gpt-4-0125-preview",
+                messages=messages,
+                max_tokens=4096,
+                temperature=1.05,
+                stream=True,
+            )
+            print("\n[magenta underline]GPT-4:[/]")
+            sys.stdout.flush()
+
+            global spinner_stop
+            spinner_stop = False
+            spinner_thread = threading.Thread(target=spinner)
+            spinner_thread.start()
+            
+            response = ""
+            for chunk in stream:
+                response += chunk.choices[0].delta.content or ""
+
+            spinner_stop = True
+            spinner_thread.join()
+
+            md = Markdown(response)
+            print(md)
+            print(Rule(), "")
+
+    except KeyboardInterrupt:
+        print("\nInterrupted by user")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
+
+if __name__ == "__main__":
+    main()
