@@ -88,6 +88,10 @@ def generate_markdown_from_directory(root_dir) -> (str, int):
                     
                     markdown_output += f"## {relative_file_path}\n\n{enclosure}\n{content}\n{enclosure}\n\n"
                     token_count = estimate_token_count(markdown_output)
+                    if token_count > 100000:
+                        markdown_output = f"DIRECTORY TOO BIG."
+                    else:
+                        markdown_output = markdown_output
     return markdown_output, token_count
 
 def read_file_contents(file_path: str) -> (str, str, int):
@@ -155,9 +159,11 @@ def main():
 """
 You're now chatting with GPT-4.
 The user prompt handles multiline input, so Enter gives a newline.
-You can pass utf-8 encoded files to GPT-4 by entering "Upload: ~/path/to/file_name"
 To submit your prompt to GPT-4 hit Esc -> Enter.
 To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
+
+You can pass individual utf-8 encoded files to GPT-4 by entering "Upload: ~/path/to/file_name"
+You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/path/to/directory"
 """
         )
 
@@ -173,6 +179,9 @@ To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
             if is_file_request:
                 if is_directory:
                     markdown_content, token_count = generate_markdown_from_directory(path)
+                    if markdown_content == "DIRECTORY TOO BIG.":
+                        print(f"\nThe directory is too large to upload because it is likely larger than 100,000 tokens.\n"
+                              f"Estimated token count for this recursive directory analysis: {token_count}\n")
                     if markdown_content:
                         dir_analysis_request = (f"The following describes a directory stucture along with all its contents in "
                                             f"Markdown format. "
