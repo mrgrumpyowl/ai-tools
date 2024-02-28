@@ -71,7 +71,7 @@ def is_binary(file_path):
     except Exception:
         return True  # If there's an error reading the file, treat it as binary
 
-def generate_markdown_from_directory(root_dir) -> str:
+def generate_markdown_from_directory(root_dir) -> (str, int):
     markdown_output = ""
     for dirpath, dirnames, filenames in os.walk(root_dir):
         dirnames[:] = [d for d in dirnames if not should_ignore(os.path.join(dirpath, d))]
@@ -87,7 +87,8 @@ def generate_markdown_from_directory(root_dir) -> str:
                         enclosure = '"""'
                     
                     markdown_output += f"## {relative_file_path}\n\n{enclosure}\n{content}\n{enclosure}\n\n"
-    return markdown_output
+                    token_count = estimate_token_count(markdown_output)
+    return markdown_output, token_count
 
 def read_file_contents(file_path: str) -> (str, str, int):
     try:
@@ -171,7 +172,7 @@ To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
             is_file_request, path, is_directory = detect_file_analysis_request(content)
             if is_file_request:
                 if is_directory:
-                    markdown_content = generate_markdown_from_directory(path)
+                    markdown_content, token_count = generate_markdown_from_directory(path)
                     if markdown_content:
                         dir_analysis_request = (f"The following describes a directory stucture along with all its contents in "
                                             f"Markdown format. "
@@ -181,6 +182,7 @@ To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
                                             f"assurance that you have memorised the contents of the repository and you are ready to "
                                             f"answer the user's questions.\n\n{markdown_content}")
                         append_message(messages, "user", dir_analysis_request)
+                        print(f"\nEstimated token count for this recursive directory analysis: {token_count}\n")
                     else:
                         print_formatted_text(HTML("<ansired>Directory is empty or contains no readable files.</ansired>"))
                         continue
