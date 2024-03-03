@@ -1,0 +1,4 @@
+groq
+prompt_toolkit
+rich
+tiktoken
