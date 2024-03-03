@@ -7,6 +7,7 @@ import threading
 import tiktoken
 import time
 import datetime
+import subprocess
 
 from groq import Groq
 
@@ -55,7 +56,8 @@ def should_ignore(file_path):
         '.history', '*swp', '.envrc', '.direnv', '.editorconfig',
         '.external_modules', 'modules/*', '.terraform.lock.hcl', '*.png',
         '*.jpg', '*.jpeg', '*.bmp', '.test-data', '*.plan', '*plan.out',
-        '*plan.summary', '*/.git', '*/.gitignore', '*/.git-credentials',
+        '*plan.summary', '*/.git/hooks', '*/.git/info', '*/.git/logs',
+        '*/.git/objects', '*/.git/refs', '*/.gitignore', '*/.git-credentials',
         '*/manifest.json', '.checkov.yaml', '*/saml/*'
     ]
     for pattern in ignore_patterns:
@@ -71,8 +73,25 @@ def is_binary(file_path):
     except Exception:
         return True  # If there's an error reading the file, treat it as binary
 
+def get_directory_tree_structure(dir_path: str) -> str:
+    # Returns the output of `tree -d` command on the specified directory path
+    command = ["tree", "-d", dir_path]
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to execute `tree -d` on {dir_path}: {e}")
+        return ""
+
 def generate_markdown_from_directory(root_dir) -> tuple[str, int]:
     markdown_output = ""
+    token_count = 0
+
+    tree_structure = get_directory_tree_structure(root_dir)
+    markdown_output += (f"# Directory Analysis for {root_dir}\n\n"
+                        f"## Directory Structure as shown by the output of the `tree -d` command\n\n"
+                        f"```\n{tree_structure}\n```\n\n")
+
     for dirpath, dirnames, filenames in os.walk(root_dir):
         dirnames[:] = [d for d in dirnames if not should_ignore(os.path.join(dirpath, d))]
         for filename in filenames:
@@ -110,7 +129,7 @@ def read_file_contents(file_path: str) -> tuple[str, str, int]:
         return "", f'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
 
 def estimate_token_count(content: str) -> int:
-    """Returns the number of tokens in a text string."""
+    # Returns the number of tokens as an int.
     encoding = tiktoken.encoding_for_model("gpt-4")
     num_tokens = len(encoding.encode(content))
     return num_tokens
