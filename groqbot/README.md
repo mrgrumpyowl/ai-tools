@@ -1,6 +1,8 @@
-# CLI Chat Interface for GPT-4
+# CLI Chat Interface for Mixtral-8x7b
 
-This project provides a simple CLI chat interface to interact with OpenAI's GPT-4 model. It utilizes the `openai` Python package to communicate with the GPT-4 API and provides a user-friendly command-line interface for submitting prompts and receiving responses.
+This project provides a simple CLI chat interface to interact with Mistral's Mixtral-8x7b model. It utilizes the `groq` Python package to communicate with the Groq API and provides a user-friendly command-line interface for submitting prompts and receiving responses.
+
+This is essentially a clone of the original 'chatbot' in this repository. It makes use of Groq's clone of the OpenAI API Python SDK to provide a Mixtral model variant of the chatbot at very little effort to me, the developer. 
 
 ## Features
 
@@ -16,7 +18,7 @@ This project provides a simple CLI chat interface to interact with OpenAI's GPT-
 
 Before you start, ensure you have installed the following:
 - Python 3.10 or higher
-- `openai` Python package
+- `groq` Python package
 - `prompt_toolkit` Python package
 - `rich` Python package
 - `tiktoken` Python package
@@ -27,14 +29,14 @@ Before you start, ensure you have installed the following:
 2. Install the required Python packages by running:
 
 ```bash
-pip3 install openai prompt_toolkit rich tiktoken
+pip3 install groq prompt_toolkit rich tiktoken
 ```
 
-3. Set up your OpenAI API key by following the instructions [here](https://openai.com/api/).
-4. Once you have your OpenAI API key, export your OpenAI key as an environment variable in `.zshrc` or `.bashrc` like this:
+3. Set up your Groq API key by following the instructions [here](https://console.groq.com/docs/quickstart).
+4. Once you have your Groq API key, export your Groq key as an environment variable in `.zshrc` or `.bashrc` like this:
 
 ```
-export OPENAI_API_KEY='sk-yourkeyhere'
+export GROQ_API_KEY='gsk-yourkeyhere'
 ```
 
 ## Usage
@@ -42,13 +44,13 @@ export OPENAI_API_KEY='sk-yourkeyhere'
 To start the chat interface, navigate to the directory containing the script and make it executable:
 
 ```bash
-chmod +x chatbot.py
+chmod +x groqbot.py
 ```
 
 Then you can just run it with: 
 
 ```
-./chatbot.py
+./groqbot.py
 ```
 
 Follow the on-screen instructions for submitting prompts to GPT-4.
@@ -58,7 +60,7 @@ Nb. If you like the script and want to put it in the way of your PATH so that yo
 For example (on MacOS): 
 
 ```bash
-sudo ln -s /Users/username/mrgrumpyowl/ai-tools/chatbot/chatbot.py /usr/local/bin/chatbot
+sudo ln -s /Users/username/mrgrumpyowl/ai-tools/groqbot/groqbot.py /usr/local/bin/groqbot
 ```
 
 ## Contributing

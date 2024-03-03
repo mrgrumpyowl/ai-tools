@@ -9,7 +9,7 @@ import time
 import datetime
 import subprocess
 
-from openai import OpenAI
+from groq import Groq
 
 from prompt_toolkit import prompt
 from prompt_toolkit import print_formatted_text
@@ -107,7 +107,7 @@ def generate_markdown_from_directory(root_dir) -> tuple[str, int]:
                     
                     markdown_output += f"## {relative_file_path}\n\n{enclosure}\n{content}\n{enclosure}\n\n"
                     token_count = estimate_token_count(markdown_output)
-                    if token_count > 100000:
+                    if token_count > 26000:
                         markdown_output = f"DIRECTORY TOO BIG."
                     else:
                         markdown_output = markdown_output
@@ -121,7 +121,7 @@ def read_file_contents(file_path: str) -> tuple[str, str, int]:
             if not file_contents:
                 return file_name, False, 0
             token_count = estimate_token_count(file_contents)
-            if token_count > 64000:
+            if token_count > 26000:
                 return file_name, f"FILE TOO BIG.", token_count
             return file_name, file_contents, token_count
     except Exception as e:
@@ -151,7 +151,9 @@ def spinner():
 
 def main():
     try:
-        client = OpenAI()
+        client = Groq(
+            api_key=os.environ.get("GROQ_API_KEY"),
+        )
 
         now = datetime.datetime.now()
         local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
@@ -176,13 +178,13 @@ def main():
         
         welcome = (
 """
-You're now chatting with GPT-4.
+You're now chatting with Groq (Mixtral-8x7b).
 The user prompt handles multiline input, so Enter gives a newline.
-To submit your prompt to GPT-4 hit Esc -> Enter.
+To submit your prompt to Groq hit Esc -> Enter.
 To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
 
-You can pass individual utf-8 encoded files to GPT-4 by entering "Upload: ~/path/to/file_name"
-You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/path/to/directory"
+You can pass individual utf-8 encoded files to Groq by entering "Upload: ~/path/to/file_name"
+You can pass entire directories (recursively) to Groq by entering "Upload: ~/path/to/directory"
 """
         )
 
@@ -199,7 +201,7 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
                 if is_directory:
                     markdown_content, token_count = generate_markdown_from_directory(path)
                     if markdown_content == "DIRECTORY TOO BIG.":
-                        print(f"\nThe directory is too large to upload because it is likely larger than 100,000 tokens.\n"
+                        print(f"\nThe directory is too large to upload because it is likely larger than 26,000 tokens.\n"
                               f"Estimated token count for this recursive directory analysis: {token_count}\n")
                     if markdown_content:
                         dir_analysis_request = (f"The following describes a directory stucture along with all its contents in "
@@ -217,7 +219,7 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
                 else:
                     file_name, file_contents, token_count = read_file_contents(path)
                     if file_contents == "FILE TOO BIG.":
-                        print(f"\nThe file: {file_name} is too large to upload because it is likely larger than 64,000 tokens.\n"
+                        print(f"\nThe file: {file_name} is too large to upload because it is likely larger than 26,000 tokens.\n"
                               f"Estimated token count for this file: {token_count}\n")
                     elif file_contents:
                         file_analysis_request = (f"Please analyse the contents of the following file:\n"
@@ -234,13 +236,13 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
                 append_message(messages, "user", content)
 
             stream = client.chat.completions.create(
-                model="gpt-4-0125-preview",
+                model="mixtral-8x7b-32768",
                 messages=messages,
                 max_tokens=4096,
                 temperature=1.05,
                 stream=True,
             )
-            print("\n[magenta underline]GPT-4:[/]")
+            print("\n[magenta underline]Groq (Mixtral-8x7b):[/]")
             sys.stdout.flush()
 
             global spinner_stop
