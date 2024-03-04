@@ -21,7 +21,7 @@ This repository contains a Python script designed to automate the process of gen
 2. Install the required Python package using pip:
 
 ```bash
-pip install openai
+pip3 install openai
 ```
 
 3. Obtain an API key from [OpenAI](https://openai.com/) and configure it as per the `openai` package's documentation.
