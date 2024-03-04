@@ -22,6 +22,7 @@ Before you start, ensure you have installed the following:
 - `prompt_toolkit` Python package
 - `rich` Python package
 - `tiktoken` Python package
+- `tree` command-line utility
 
 ## Installation
 
