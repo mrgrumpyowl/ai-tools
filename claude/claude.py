@@ -9,7 +9,7 @@ import time
 import datetime
 import subprocess
 
-from openai import OpenAI
+from anthropic import Anthropic
 
 from prompt_toolkit import prompt
 from prompt_toolkit import print_formatted_text
@@ -153,38 +153,35 @@ def spinner():
 
 def main():
     try:
-        client = OpenAI()
+        client = Anthropic()
 
         now = datetime.datetime.now()
         local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
         local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
 
-        messages = [
-            {
-                "role": "system",
-                "content": (f"You are a helpful AI assistant. Today is {local_date}. Local time is {local_time}. "
-                            f"You answer queries succinctly, avoiding preamble and summaries whenever possible. "
-                            f"You answer queries at a high language level and with expert level knowledge. "
-                            f"Avoid responses that comment on the limitations of your model. You provide full, "
-                            f"detailed answers. You behave like a passionate expert who always takes a clear "
-                            f"stance on any topic discussed. - Be excellent at reasoning - When reasoning, take "
-                            f"a deep breath and think step by step before you answer the question. You do not make "
-                            f"your answers artificially shorter to fit within a response word limit. If your full, "
-                            f"considered response would be constrained by the output token limit of your model (4096), "
-                            f"you will continue your answer in the next response, prompting the user with "
-                            f"\"Shall I continue?\".")
-            }
-        ]
+        system_prompt = (f"You format your responses in Markdown. Today is {local_date}. Local time is {local_time}. "
+                         f"You answer queries succinctly, avoiding preamble and summaries whenever possible. "
+                         f"You answer queries at a high language level and with expert level knowledge. "
+                         f"Avoid responses that comment on the limitations of your model. You provide full, "
+                         f"detailed answers. You behave like a passionate expert who always takes a clear "
+                         f"stance on any topic discussed. - Be excellent at reasoning - When reasoning, take "
+                         f"a deep breath and think step by step before you answer the question. You do not make "
+                         f"your answers artificially shorter to fit within a response word limit. If your full, "
+                         f"considered response would be constrained by the output token limit of your model (4096), "
+                         f"you will continue your answer in the next response, prompting the user with "
+                         f"\"Shall I continue?\".")
         
+        messages = []
+
         welcome = (
 """
-You're now chatting with GPT-4.
+You're now chatting with Anthropic's Claude 3 Opus.
 The user prompt handles multiline input, so Enter gives a newline.
-To submit your prompt to GPT-4 hit Esc -> Enter.
+To submit your prompt to Claude hit Esc -> Enter.
 To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
 
-You can pass individual utf-8 encoded files to GPT-4 by entering "Upload: ~/path/to/file_name"
-You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/path/to/directory"
+You can pass individual utf-8 encoded files to Claude by entering "Upload: ~/path/to/file_name"
+You can pass entire directories (recursively) to Claude by entering "Upload: ~/path/to/directory"
 """
         )
 
@@ -235,34 +232,34 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
             else:
                 append_message(messages, "user", content)
 
-            stream = client.chat.completions.create(
-                model="gpt-4-0125-preview",
+            with client.messages.stream(
+                model="claude-3-opus-20240229",
                 messages=messages,
+                system=system_prompt,
                 max_tokens=4096,
-                temperature=1.05,
-                stream=True,
-            )
-            console.print("\n[magenta underline]GPT-4:[/]")
-            sys.stdout.flush()
+                temperature=0.5,
+            ) as stream:
+                console.print("\n[yellow underline]Claude 3 Opus:[/]")
+                sys.stdout.flush()
 
-            global spinner_stop
-            spinner_stop = False
-            spinner_thread = threading.Thread(target=spinner)
-            spinner_thread.start()
-            
-            response = ""
-            for chunk in stream:
-                response += chunk.choices[0].delta.content or ""
-            
-            append_message(messages, "assistant", response)
+                global spinner_stop
+                spinner_stop = False
+                spinner_thread = threading.Thread(target=spinner)
+                spinner_thread.start()
+                
+                response = ""
+                for text in stream.text_stream:
+                    response += text or ""
 
-            spinner_stop = True
-            spinner_thread.join()
+                append_message(messages, "assistant", response)
 
-            md = Markdown(response)
-            print(md)
-            print(Rule(), "")
+                spinner_stop = True
+                spinner_thread.join()
 
+                md = Markdown(response)
+                print(md)
+                print(Rule(), "")
+                
     except KeyboardInterrupt:
         print("\nInterrupted by user")
         try:
