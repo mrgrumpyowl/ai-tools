@@ -25,7 +25,7 @@ console = Console(highlight=False)
 def get_user_input() -> str:
     # Display the prompt to the user for multiline input.
     # The user can press Esc followed by Enter to submit their input.
-    text = HTML('<u><style fg="ansiblue">User:</style></u>')
+    text = HTML('<u><b><style fg="ansiblue">User:</style></b></u>')
     user_input = prompt(print_formatted_text(text), multiline=True)
     return user_input
 

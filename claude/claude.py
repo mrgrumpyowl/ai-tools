@@ -25,7 +25,7 @@ console = Console(highlight=False)
 def get_user_input() -> str:
     # Display the prompt to the user for multiline input.
     # The user can press Esc followed by Enter to submit their input.
-    text = HTML('<u><style fg="ansiblue">User:</style></u>')
+    text = HTML('<u><b><style fg="ansiblue">User:</style></b></u>')
     user_input = prompt(print_formatted_text(text), multiline=True)
     return user_input
 
@@ -159,17 +159,9 @@ def main():
         local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
         local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
 
-        system_prompt = (f"You format your responses in Markdown. Today is {local_date}. Local time is {local_time}. "
-                         f"You answer queries succinctly, avoiding preamble and summaries whenever possible. "
-                         f"You answer queries at a high language level and with expert level knowledge. "
-                         f"Avoid responses that comment on the limitations of your model. You provide full, "
-                         f"detailed answers. You behave like a passionate expert who always takes a clear "
-                         f"stance on any topic discussed. - Be excellent at reasoning - When reasoning, take "
-                         f"a deep breath and think step by step before you answer the question. You do not make "
-                         f"your answers artificially shorter to fit within a response word limit. If your full, "
-                         f"considered response would be constrained by the output token limit of your model (4096), "
-                         f"you will continue your answer in the next response, prompting the user with "
-                         f"\"Shall I continue?\".")
+        system_prompt = (f"Specifically, your model is \"Claude 3 Opus\". Your knowledge base was last updated "
+                         f"in August 2023. Today is {local_date}. Local time is {local_time}. You write in British "
+                         f"English and you are not too quick to apologise.")
         
         messages = []
 
