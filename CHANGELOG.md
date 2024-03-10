@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Dates in this file are in format of YYYY-MM-DD (2019-12-13 means 13th of December 2019).
 
+## [[1.2.0]](https://github.com/mrgrumpyowl/ai-dev-tools/releases/tag/1.2.0) - 2024-03-10
+
+### Added
+* claude: Added a clone of the chatbot that leverages the Anthropic API to offer a chat interface to their excellent new Claude 3 Opus model. [@mrgrumpyowl](https://github.com/mrgrumpyowl)
+
+## [[1.1.1]](https://github.com/mrgrumpyowl/ai-dev-tools/releases/tag/1.1.1) - 2024-03-04
+
+### Changed
+* README hotfix - mention tree dependency. [@mrgrumpyowl](https://github.com/mrgrumpyowl)
+
 ## [[1.1.0]](https://github.com/mrgrumpyowl/ai-dev-tools/releases/tag/1.1.0) - 2024-03-03
 
 ### Added
