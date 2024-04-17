@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Dates in this file are in format of YYYY-MM-DD (2019-12-13 means 13th of December 2019).
 
+## [[1.3.0]](https://github.com/mrgrumpyowl/ai-dev-tools/releases/tag/1.3.0) - 2024-04-15
+
+### Added
+* chatbot: Added new functionality to store chat history in `~/.chatbot/chat-history/` and to resume a previous conversation from chat history if the user desires. [@mrgrumpyowl](https://github.com/mrgrumpyowl)
+
+### Changed
+* chatbot: Updated the gpt-4 model to `gpt-4-turbo` so as to track the latest gpt-4 model available from OpenAI. `got-4-turbo` currently points to gpt-4-turbo-2024-04-09. Training data up to Dec 2023. [@mrgrumpyowl](https://github.com/mrgrumpyowl)
+
 ## [[1.2.0]](https://github.com/mrgrumpyowl/ai-dev-tools/releases/tag/1.2.0) - 2024-03-10
 
 ### Added

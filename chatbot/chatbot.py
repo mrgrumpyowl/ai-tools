@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
 import fnmatch
+import json
 import os
 import sys
 import threading
 import tiktoken
 import time
-import datetime
 import subprocess
+
+from datetime import datetime
 
 from openai import OpenAI
 
@@ -21,10 +23,85 @@ from rich.markdown import Markdown
 from rich.rule import Rule
 
 console = Console(highlight=False)
+current_chat_file = None
+
+def ensure_chat_history_dir():
+    """Ensures that the chat history directory exists."""
+    home_dir = os.path.expanduser("~")
+    chat_history_base_dir = os.path.join(home_dir, '.chatbot', 'chat-history')
+    os.makedirs(chat_history_base_dir, exist_ok=True)
+    return chat_history_base_dir
+
+def get_todays_chat_dir(base_dir):
+    """Returns today's chat directory, creating it if necessary."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    todays_chat_dir = os.path.join(base_dir, today)
+    os.makedirs(todays_chat_dir, exist_ok=True)
+    return todays_chat_dir
+
+def save_chat(chat_data, chat_dir):
+    global current_chat_file
+    """Saves current chat data to the session file."""
+    if not current_chat_file:
+        time_stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f"{time_stamp}.json"
+        current_chat_file = os.path.join(chat_dir, filename)
+
+    with open(current_chat_file, 'w', encoding='utf-8') as f:
+        json.dump(chat_data, f, ensure_ascii=False, indent=4)
+
+def load_chat(file_path):
+    """Loads chat data from a file."""
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def select_chat_file(chat_dir):
+    """Provides a UI to select an old chat file from available files."""
+    files = []
+    for subdir, dirs, files_in_dir in os.walk(chat_dir):
+        for file in files_in_dir:
+            if file.endswith('.json'):
+                full_path = os.path.join(subdir, file)
+                files.append(full_path)
+    files = sorted(files, reverse=True)[:20]
+
+    if not files:
+        print("No previous chats available.")
+        return None
+
+    console.print(f"[bold cyan]\nHere are the most recent chats (up to 20) sorted by most recent first:[/]")
+    for idx, file in enumerate(files):
+        display_name = os.path.splitext(os.path.basename(file))[0]
+        print(f"{idx + 1}) {display_name}")
+
+    print("\nSelect a file to resume (number), or press Enter for the most recent chat: ")
+    user_input = input().strip()
+    if user_input == "":
+        # Default to the first file if user just presses enter
+        return files[0]
+
+    try:
+        choice = int(user_input) - 1
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+        return None
+
+    if 0 <= choice < len(files):
+        return files[choice]
+    else:
+        print("Invalid choice. Please select a valid file number.")
+        return None
+
+def main_menu():
+    """Show the main menu to the user and handle the choice."""
+    first_menu = ("\n1) Start New Chat\n2) Resume Recent Chat")
+    console.print(f"[bold blue]{first_menu}[/]")
+    choice = input(f"\nChoose (1-2): ")
+    return choice.strip()
 
 def get_user_input() -> str:
-    # Display the prompt to the user for multiline input.
-    # The user can press Esc followed by Enter to submit their input.
+    """Display the prompt to the user for multiline input.
+    The user can press Esc followed by Enter to submit their input."""
     text = HTML('<u><b><style fg="ansiblue">User:</style></b></u>')
     user_input = prompt(print_formatted_text(text), multiline=True)
     return user_input
@@ -76,7 +153,7 @@ def is_binary(file_path):
         return True  # If there's an error reading the file, treat it as binary
 
 def get_directory_tree_structure(dir_path: str) -> str:
-    # Returns the output of `tree -d` command on the specified directory path
+    """Returns the output of `tree -d` command on the specified directory path"""
     command = ["tree", "-d", dir_path]
     try:
         result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
@@ -106,7 +183,7 @@ def generate_markdown_from_directory(root_dir) -> tuple[str, int]:
                     enclosure = "```"
                     if filename.endswith('.md'):
                         enclosure = '"""'
-                    
+
                     markdown_output += f"## {relative_file_path}\n\n{enclosure}\n{content}\n{enclosure}\n\n"
                     token_count = estimate_token_count(markdown_output)
                     if token_count > 100000:
@@ -131,7 +208,7 @@ def read_file_contents(file_path: str) -> tuple[str, str, int]:
         return "", f'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
 
 def estimate_token_count(content: str) -> int:
-    # Returns the number of tokens as an int.
+    """Returns the number of tokens as an int."""
     encoding = tiktoken.encoding_for_model("gpt-4")
     num_tokens = len(encoding.encode(content))
     return num_tokens
@@ -155,27 +232,41 @@ def main():
     try:
         client = OpenAI()
 
-        now = datetime.datetime.now()
+        # Initialize and ensure chat history directories
+        base_dir = ensure_chat_history_dir()
+        todays_chat_dir = get_todays_chat_dir(base_dir)
+
+        now = datetime.now()
         local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
         local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
 
-        messages = [
-            {
-                "role": "system",
-                "content": (f"You are a helpful AI assistant. Today is {local_date}. Local time is {local_time}. "
-                            f"You answer queries succinctly, avoiding preamble and summaries whenever possible. "
-                            f"You answer queries at a high language level and with expert level knowledge. "
-                            f"Avoid responses that comment on the limitations of your model. You provide full, "
-                            f"detailed answers. You behave like a passionate expert who always takes a clear "
-                            f"stance on any topic discussed. - Be excellent at reasoning - When reasoning, take "
-                            f"a deep breath and think step by step before you answer the question. You do not make "
-                            f"your answers artificially shorter to fit within a response word limit. If your full, "
-                            f"considered response would be constrained by the output token limit of your model (4096), "
-                            f"you will continue your answer in the next response, prompting the user with "
-                            f"\"Shall I continue?\".")
-            }
-        ]
-        
+        choice = main_menu()
+        if choice == "2":
+            all_chats_dir = os.path.join(base_dir)  # Adjusted for browsing all directories
+            chat_file = select_chat_file(all_chats_dir)
+            if chat_file:
+                messages = load_chat(chat_file)
+            else:
+                print("No chat selected or file not found.")
+                return
+        else:
+            messages = [
+                {
+                    "role": "system",
+                    "content": (f"You are a helpful AI assistant. Today is {local_date}. Local time is {local_time}. "
+                                f"You answer queries succinctly, avoiding preamble and summaries whenever possible. "
+                                f"You answer queries at a high language level and with expert level knowledge. "
+                                f"Avoid responses that comment on the limitations of your model. You provide full, "
+                                f"detailed answers. You behave like a passionate expert who always takes a clear "
+                                f"stance on any topic discussed. - Be excellent at reasoning - When reasoning, take "
+                                f"a deep breath and think step by step before you answer the question. You do not make "
+                                f"your answers artificially shorter to fit within a response word limit. If your full, "
+                                f"considered response would be constrained by the output token limit of your model (4096), "
+                                f"you will continue your answer in the next response, prompting the user with "
+                                f"\"Shall I continue?\".")
+                }
+            ]
+
         welcome = (
 """
 You're now chatting with GPT-4.
@@ -189,7 +280,7 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
         )
 
         console.print(f"[bold blue]{welcome}[/]")
-        
+
         while True:
             content = get_user_input()
 
@@ -236,7 +327,7 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
                 append_message(messages, "user", content)
 
             stream = client.chat.completions.create(
-                model="gpt-4-0125-preview",
+                model="gpt-4-turbo",
                 messages=messages,
                 max_tokens=4096,
                 temperature=1.05,
@@ -249,11 +340,11 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
             spinner_stop = False
             spinner_thread = threading.Thread(target=spinner)
             spinner_thread.start()
-            
+
             response = ""
             for chunk in stream:
                 response += chunk.choices[0].delta.content or ""
-            
+
             append_message(messages, "assistant", response)
 
             spinner_stop = True
@@ -262,6 +353,8 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
             md = Markdown(response)
             print(md)
             print(Rule(), "")
+
+            save_chat(messages, todays_chat_dir)
 
     except KeyboardInterrupt:
         print("\nInterrupted by user")

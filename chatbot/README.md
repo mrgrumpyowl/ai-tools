@@ -11,6 +11,7 @@ This project provides a simple CLI chat interface to interact with OpenAI's GPT-
 - Supports uploading individual files by entering "Upload: ~/path/to/file_name"
 - Supports uploading an entire directory and its contents recursively by entering "Upload: ~/path/to/directory"
 - Note that the upload features are designed primarily for code repository analysis so supports only utf-8 encoded files.
+- Stores chat history in `~/.chatbot/chat-history/` and can resume a previous conversation if the user desires.
 
 ## Prerequisites
 
