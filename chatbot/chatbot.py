@@ -19,6 +19,7 @@ from prompt_toolkit.formatted_text import HTML
 
 from rich import print
 from rich.console import Console
+from rich.live import Live
 from rich.markdown import Markdown
 from rich.rule import Rule
 
@@ -331,24 +332,20 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
                 stream=True,
             )
             console.print("\n[magenta underline]GPT-4o:[/]")
-            sys.stdout.flush()
+            complete_message = ""
+            with Live(Markdown(complete_message),
+                refresh_per_second=10,
+                console=console,
+                transient=False,
+            ) as live:
+                for chunk in stream:
+                    if chunk.choices[0].delta.content:
+                        complete_message += chunk.choices[0].delta.content
+                        live.update(Markdown(complete_message))
 
-            global spinner_stop
-            spinner_stop = False
-            spinner_thread = threading.Thread(target=spinner)
-            spinner_thread.start()
+            append_message(messages, "assistant", complete_message)
 
-            response = ""
-            for chunk in stream:
-                response += chunk.choices[0].delta.content or ""
-
-            append_message(messages, "assistant", response)
-
-            spinner_stop = True
-            spinner_thread.join()
-
-            md = Markdown(response)
-            print(md)
+            print(f"\n")
             print(Rule(), "")
 
             save_chat(messages, todays_chat_dir)
