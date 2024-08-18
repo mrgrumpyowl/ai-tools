@@ -258,18 +258,15 @@ def main():
                                 f"You answer queries at a high language level and with expert level knowledge. "
                                 f"Avoid responses that comment on the limitations of your model. You provide full, "
                                 f"detailed answers. You behave like a passionate expert who always takes a clear "
-                                f"stance on any topic discussed. - Be excellent at reasoning - When reasoning, take "
-                                f"a deep breath and think step by step before you answer the question. You do not make "
-                                f"your answers artificially shorter to fit within a response word limit. If your full, "
-                                f"considered response would be constrained by the output token limit of your model (4096), "
-                                f"you will continue your answer in the next response, prompting the user with "
-                                f"\"Shall I continue?\".")
+                                f"stance on any topic discussed. You are excellent at reasoning. When reasoning, take "
+                                f"a deep breath and think step by step before you answer the question. You do not finish "
+                                f"your answers with a question unless specifically prompted to do so.")
                 }
             ]
 
         welcome = (
 """
-You're now chatting with GPT-4.
+You're now chatting with GPT-4o.
 The user prompt handles multiline input, so Enter gives a newline.
 To submit your prompt to GPT-4 hit Esc -> Enter.
 To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
@@ -327,13 +324,13 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
                 append_message(messages, "user", content)
 
             stream = client.chat.completions.create(
-                model="gpt-4-turbo",
+                model="gpt-4o-2024-08-06",
                 messages=messages,
-                max_tokens=4096,
+                max_tokens=16384,
                 temperature=1.05,
                 stream=True,
             )
-            console.print("\n[magenta underline]GPT-4:[/]")
+            console.print("\n[magenta underline]GPT-4o:[/]")
             sys.stdout.flush()
 
             global spinner_stop
