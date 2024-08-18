@@ -19,6 +19,7 @@ from prompt_toolkit.formatted_text import HTML
 
 from rich import print
 from rich.console import Console
+from rich.live import Live
 from rich.markdown import Markdown
 from rich.rule import Rule
 
@@ -258,18 +259,15 @@ def main():
                                 f"You answer queries at a high language level and with expert level knowledge. "
                                 f"Avoid responses that comment on the limitations of your model. You provide full, "
                                 f"detailed answers. You behave like a passionate expert who always takes a clear "
-                                f"stance on any topic discussed. - Be excellent at reasoning - When reasoning, take "
-                                f"a deep breath and think step by step before you answer the question. You do not make "
-                                f"your answers artificially shorter to fit within a response word limit. If your full, "
-                                f"considered response would be constrained by the output token limit of your model (4096), "
-                                f"you will continue your answer in the next response, prompting the user with "
-                                f"\"Shall I continue?\".")
+                                f"stance on any topic discussed. You are excellent at reasoning. When reasoning, take "
+                                f"a deep breath and think step by step before you answer the question. You do not finish "
+                                f"your answers with a question unless specifically prompted to do so.")
                 }
             ]
 
         welcome = (
 """
-You're now chatting with GPT-4.
+You're now chatting with GPT-4o.
 The user prompt handles multiline input, so Enter gives a newline.
 To submit your prompt to GPT-4 hit Esc -> Enter.
 To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
@@ -327,31 +325,27 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
                 append_message(messages, "user", content)
 
             stream = client.chat.completions.create(
-                model="gpt-4-turbo",
+                model="gpt-4o-2024-08-06",
                 messages=messages,
-                max_tokens=4096,
+                max_tokens=16384,
                 temperature=1.05,
                 stream=True,
             )
-            console.print("\n[magenta underline]GPT-4:[/]")
-            sys.stdout.flush()
+            console.print("\n[magenta underline]GPT-4o:[/]")
+            complete_message = ""
+            with Live(Markdown(complete_message),
+                refresh_per_second=10,
+                console=console,
+                transient=False,
+            ) as live:
+                for chunk in stream:
+                    if chunk.choices[0].delta.content:
+                        complete_message += chunk.choices[0].delta.content
+                        live.update(Markdown(complete_message))
 
-            global spinner_stop
-            spinner_stop = False
-            spinner_thread = threading.Thread(target=spinner)
-            spinner_thread.start()
+            append_message(messages, "assistant", complete_message)
 
-            response = ""
-            for chunk in stream:
-                response += chunk.choices[0].delta.content or ""
-
-            append_message(messages, "assistant", response)
-
-            spinner_stop = True
-            spinner_thread.join()
-
-            md = Markdown(response)
-            print(md)
+            print(f"\n")
             print(Rule(), "")
 
             save_chat(messages, todays_chat_dir)
