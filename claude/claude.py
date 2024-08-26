@@ -17,6 +17,7 @@ from prompt_toolkit.formatted_text import HTML
 
 from rich import print
 from rich.console import Console
+from rich.live import Live
 from rich.markdown import Markdown
 from rich.rule import Rule
 
@@ -224,33 +225,35 @@ You can pass entire directories (recursively) to Claude by entering "Upload: ~/p
             else:
                 append_message(messages, "user", content)
 
-            with client.messages.stream(
+            stream = client.messages.create(
                 model="claude-3-opus-20240229",
                 messages=messages,
                 system=system_prompt,
                 max_tokens=4096,
                 temperature=0.5,
-            ) as stream:
-                console.print("\n[yellow underline]Claude 3 Opus:[/]")
-                sys.stdout.flush()
+                stream=True
+            )  
+            console.print("\n[yellow underline]Claude 3 Opus:[/]")
+            complete_message = ""
+            with Live(Markdown(complete_message),
+                refresh_per_second=10,
+                console=console,
+                transient=False,
+            ) as live:
+                for chunk in stream:
+                    if chunk.type == "content_block_start":
+                        continue
+                    elif chunk.type == "content_block_delta":
+                        if chunk.delta.text:
+                            complete_message += chunk.delta.text
+                            live.update(Markdown(complete_message))
+                    elif chunk.type == "message_stop":
+                        break
 
-                global spinner_stop
-                spinner_stop = False
-                spinner_thread = threading.Thread(target=spinner)
-                spinner_thread.start()
-                
-                response = ""
-                for text in stream.text_stream:
-                    response += text or ""
+            append_message(messages, "assistant", complete_message)
 
-                append_message(messages, "assistant", response)
-
-                spinner_stop = True
-                spinner_thread.join()
-
-                md = Markdown(response)
-                print(md)
-                print(Rule(), "")
+            print(f"\n")
+            print(Rule(), "")
                 
     except KeyboardInterrupt:
         print("\nInterrupted by user")
