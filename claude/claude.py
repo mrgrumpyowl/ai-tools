@@ -241,8 +241,8 @@ def main():
         local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
         local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
 
-        system_prompt = (f"Specifically, your model is \"Claude 3 Opus\". Your knowledge base was last updated "
-                         f"in August 2023. Today is {local_date}. Local time is {local_time}. You write in British "
+        system_prompt = (f"Specifically, your model is \"Claude 3.5 Sonnet\". Your knowledge base was last updated "
+                         f"in April 2024. Today is {local_date}. Local time is {local_time}. You write in British "
                          f"English and you are not too quick to apologise.")
         
         choice = main_menu()
@@ -259,7 +259,7 @@ def main():
 
         welcome = (
 """
-You're now chatting with Anthropic's Claude 3 Opus.
+You're now chatting with Anthropic's Claude 3.5 Sonnet.
 The user prompt handles multiline input, so Enter gives a newline.
 To submit your prompt to Claude hit Esc -> Enter.
 To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
@@ -317,14 +317,14 @@ You can pass entire directories (recursively) to Claude by entering "Upload: ~/p
                 append_message(messages, "user", content)
 
             stream = client.messages.create(
-                model="claude-3-opus-20240229",
+                model="claude-3-5-sonnet-20240620",
                 messages=messages,
                 system=system_prompt,
-                max_tokens=4096,
+                max_tokens=8192,
                 temperature=0.5,
                 stream=True
             )  
-            console.print("\n[yellow underline]Claude 3 Opus:[/]")
+            console.print("\n[yellow underline]Claude 3.5 Sonnet:[/]")
             complete_message = ""
             with Live(Markdown(complete_message),
                 refresh_per_second=10,
