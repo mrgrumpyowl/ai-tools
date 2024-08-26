@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
 import fnmatch
+import json
 import os
 import sys
 import threading
 import tiktoken
 import time
-import datetime
 import subprocess
+
+from datetime import datetime
 
 from anthropic import Anthropic
 
@@ -22,6 +24,81 @@ from rich.markdown import Markdown
 from rich.rule import Rule
 
 console = Console(highlight=False)
+current_chat_file = None
+
+def ensure_chat_history_dir():
+    """Ensures that the chat history directory exists."""
+    home_dir = os.path.expanduser("~")
+    chat_history_base_dir = os.path.join(home_dir, '.claude', 'chat-history')
+    os.makedirs(chat_history_base_dir, exist_ok=True)
+    return chat_history_base_dir
+
+def get_todays_chat_dir(base_dir):
+    """Returns today's chat directory, creating it if necessary."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    todays_chat_dir = os.path.join(base_dir, today)
+    os.makedirs(todays_chat_dir, exist_ok=True)
+    return todays_chat_dir
+
+def save_chat(chat_data, chat_dir):
+    global current_chat_file
+    """Saves current chat data to the session file."""
+    if not current_chat_file:
+        time_stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f"{time_stamp}.json"
+        current_chat_file = os.path.join(chat_dir, filename)
+
+    with open(current_chat_file, 'w', encoding='utf-8') as f:
+        json.dump(chat_data, f, ensure_ascii=False, indent=4)
+
+def load_chat(file_path):
+    """Loads chat data from a file."""
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def select_chat_file(chat_dir):
+    """Provides a UI to select an old chat file from available files."""
+    files = []
+    for subdir, dirs, files_in_dir in os.walk(chat_dir):
+        for file in files_in_dir:
+            if file.endswith('.json'):
+                full_path = os.path.join(subdir, file)
+                files.append(full_path)
+    files = sorted(files, reverse=True)[:20]
+
+    if not files:
+        print("No previous chats available.")
+        return None
+
+    console.print(f"[bold cyan]\nHere are the most recent chats (up to 20) sorted by most recent first:[/]")
+    for idx, file in enumerate(files):
+        display_name = os.path.splitext(os.path.basename(file))[0]
+        print(f"{idx + 1}) {display_name}")
+
+    print("\nSelect a file to resume (number), or press Enter for the most recent chat: ")
+    user_input = input().strip()
+    if user_input == "":
+        # Default to the first file if user just presses enter
+        return files[0]
+
+    try:
+        choice = int(user_input) - 1
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+        return None
+
+    if 0 <= choice < len(files):
+        return files[choice]
+    else:
+        print("Invalid choice. Please select a valid file number.")
+        return None
+
+def main_menu():
+    """Show the main menu to the user and handle the choice."""
+    first_menu = ("\n1) Start New Chat\n2) Resume Recent Chat")
+    console.print(f"[bold blue]{first_menu}[/]")
+    choice = input(f"\nChoose (1-2): ")
+    return choice.strip()
 
 def get_user_input() -> str:
     # Display the prompt to the user for multiline input.
@@ -156,7 +233,11 @@ def main():
     try:
         client = Anthropic()
 
-        now = datetime.datetime.now()
+        # Initialize and ensure chat history directories
+        base_dir = ensure_chat_history_dir()
+        todays_chat_dir = get_todays_chat_dir(base_dir)
+
+        now = datetime.now()
         local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
         local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
 
@@ -164,7 +245,17 @@ def main():
                          f"in August 2023. Today is {local_date}. Local time is {local_time}. You write in British "
                          f"English and you are not too quick to apologise.")
         
-        messages = []
+        choice = main_menu()
+        if choice == "2":
+            all_chats_dir = os.path.join(base_dir)  # Adjusted for browsing all directories
+            chat_file = select_chat_file(all_chats_dir)
+            if chat_file:
+                messages = load_chat(chat_file)
+            else:
+                print("No chat selected or file not found.")
+                return
+        else:
+            messages = []
 
         welcome = (
 """
@@ -254,6 +345,8 @@ You can pass entire directories (recursively) to Claude by entering "Upload: ~/p
 
             print(f"\n")
             print(Rule(), "")
+
+            save_chat(messages, todays_chat_dir)
                 
     except KeyboardInterrupt:
         print("\nInterrupted by user")
