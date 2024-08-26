@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Dates in this file are in format of YYYY-MM-DD (2019-12-13 means 13th of December 2019).
 
+## [[1.5.0]](https://github.com/mrgrumpyowl/ai-dev-tools/releases/tag/1.5.0) - 2024-08-26
+
+### Added
+* claude: Added new functionality to store chat history in `~/.claude/chat-history/` and to resume a previous conversation from chat history if the user desires. [@mrgrumpyowl](https://github.com/mrgrumpyowl)
+
+### Changed
+* claude: Updated the model to `claude-3-5-sonnet-20240620` so as to track the latest SOTA model available from Anthropic. Claude 3.5 Sonnet has training data up to April 2024. [@mrgrumpyowl](https://github.com/mrgrumpyowl)
+* claude: Now streams the model output, rather than waiting for the whole answer to be generated and printing it in one go. So no need for the spinner anymore. [@mrgrumpyowl](https://github.com/mrgrumpyowl)
+
 ## [[1.4.0]](https://github.com/mrgrumpyowl/ai-dev-tools/releases/tag/1.4.0) - 2024-08-18
 
 ### Changed 
