@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import fnmatch
 import json
 import os
@@ -12,6 +13,7 @@ import subprocess
 from datetime import datetime
 
 from openai import OpenAI
+from anthropic import Anthropic
 
 from prompt_toolkit import prompt
 from prompt_toolkit import print_formatted_text
@@ -22,6 +24,8 @@ from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.rule import Rule
+
+from model_config import get_model_list, get_model_config
 
 console = Console(highlight=False)
 current_chat_file = None
@@ -229,10 +233,69 @@ def spinner():
             time.sleep(0.1)
             sys.stdout.write("\b")
 
-def main():
-    try:
-        client = OpenAI()
+def select_model():
+    models = get_model_list()
+    console.print(f"[bold blue]\nAvailable models:[/]")
+    for idx, model in enumerate(models, 1):
+        friendly_name = get_model_config(model)["friendly_name"]
+        console.print(f"[bold blue]{idx}) {friendly_name}[/]")
+    
+    while True:
+        try:
+            choice = int(input("\nSelect a model (enter the number): "))
+            if 1 <= choice <= len(models):
+                return models[choice - 1]
+            else:
+                print("Invalid choice. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description=(f"Universal Chatbot - Chat with various AI models "
+            f"\nUse your own OpenAI and/or Anthropic API key to chat with their latest LLMs."),
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        "-m", "--model-select",
+        nargs='?',
+        const='show_menu',
+        metavar="MODEL",
+        help="Select the AI model to use. Options:\n"
+             "  - Specify a model name directly\n"
+             "  - Use without a value to show the model selection menu\n"
+             "  - Omit to use the default model (gpt-4o-2024-08-06)\n"
+             "Available models:\n" +
+             "\n".join(f"  - {model}" for model in get_model_list())
+    )
+    
+    return parser.parse_args()
+
+def main():
+    args = parse_arguments()
+
+    default_model = "gpt-4o-2024-08-06"
+
+    if args.model_select:
+        if args.model_select == 'show_menu':
+            selected_model = select_model()
+        elif args.model_select in get_model_list():
+            selected_model = args.model_select
+        else:
+            print(f"Invalid model: {args.model_select}")
+            selected_model = select_model()
+    else:
+        selected_model = default_model
+
+    model_config = get_model_config(selected_model)
+    friendly_name = model_config["friendly_name"]
+
+    if model_config["provider"] == "openai":
+        client = OpenAI()
+    else:
+        client = Anthropic()
+
+    try:
         # Initialize and ensure chat history directories
         base_dir = ensure_chat_history_dir()
         todays_chat_dir = get_todays_chat_dir(base_dir)
@@ -241,9 +304,13 @@ def main():
         local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
         local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
 
+        system_prompt = (f"Specifically, your model is \"{friendly_name}\". Your knowledge base was last updated "
+                         f"in April 2024. Today is {local_date}. Local time is {local_time}. You write in British "
+                         f"English and you are not too quick to apologise.")
+
         choice = main_menu()
         if choice == "2":
-            all_chats_dir = os.path.join(base_dir)  # Adjusted for browsing all directories
+            all_chats_dir = os.path.join(base_dir)
             chat_file = select_chat_file(all_chats_dir)
             if chat_file:
                 messages = load_chat(chat_file)
@@ -251,8 +318,9 @@ def main():
                 print("No chat selected or file not found.")
                 return
         else:
-            messages = [
-                {
+            messages = []
+            if model_config["provider"] == "openai":
+                messages.append({
                     "role": "system",
                     "content": (f"You are a helpful AI assistant. Today is {local_date}. Local time is {local_time}. "
                                 f"You answer queries succinctly, avoiding preamble and summaries whenever possible. "
@@ -262,23 +330,20 @@ def main():
                                 f"stance on any topic discussed. You are excellent at reasoning. When reasoning, take "
                                 f"a deep breath and think step by step before you answer the question. You do not finish "
                                 f"your answers with a question unless specifically prompted to do so.")
-                }
-            ]
+                })
 
-        welcome = (
-"""
-You're now chatting with GPT-4o.
+        welcome = f"""
+You're now chatting with {friendly_name}.
 The user prompt handles multiline input, so Enter gives a newline.
-To submit your prompt to GPT-4 hit Esc -> Enter.
+To submit your prompt hit Esc -> Enter.
 To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
 
-You can pass individual utf-8 encoded files to GPT-4 by entering "Upload: ~/path/to/file_name"
-You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/path/to/directory"
+You can pass individual utf-8 encoded files by entering "Upload: ~/path/to/file_name"
+You can pass entire directories (recursively) by entering "Upload: ~/path/to/directory"
 """
-        )
 
         console.print(f"[bold blue]{welcome}[/]")
-
+        
         while True:
             content = get_user_input()
 
@@ -324,24 +389,44 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
             else:
                 append_message(messages, "user", content)
 
-            stream = client.chat.completions.create(
-                model="gpt-4o-2024-08-06",
-                messages=messages,
-                max_tokens=16384,
-                temperature=1.05,
-                stream=True,
-            )
-            console.print("\n[magenta underline]GPT-4o:[/]")
+            if model_config["provider"] == "openai":
+                stream = client.chat.completions.create(
+                    model=selected_model,
+                    messages=messages,
+                    max_tokens=model_config["max_tokens"],
+                    temperature=model_config["temperature"],
+                    stream=True,
+                )
+            else:
+                stream = client.messages.create(
+                    model=selected_model,
+                    messages=messages,
+                    system=system_prompt,
+                    max_tokens=model_config["max_tokens"],
+                    temperature=model_config["temperature"],
+                    stream=True
+                )
+
+            console.print(f"\n[yellow underline]{friendly_name}:[/]")
             complete_message = ""
             with Live(Markdown(complete_message),
                 refresh_per_second=10,
                 console=console,
                 transient=False,
             ) as live:
-                for chunk in stream:
-                    if chunk.choices[0].delta.content:
-                        complete_message += chunk.choices[0].delta.content
-                        live.update(Markdown(complete_message))
+                if model_config["provider"] == "openai":
+                    for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            complete_message += chunk.choices[0].delta.content
+                            live.update(Markdown(complete_message))
+                else:
+                    for chunk in stream:
+                        if chunk.type == "content_block_delta":
+                            if chunk.delta.text:
+                                complete_message += chunk.delta.text
+                                live.update(Markdown(complete_message))
+                        elif chunk.type == "message_stop":
+                            break
 
             append_message(messages, "assistant", complete_message)
 
@@ -349,7 +434,7 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
             print(Rule(), "")
 
             save_chat(messages, todays_chat_dir)
-
+                
     except KeyboardInterrupt:
         print("\nInterrupted by user")
         try:

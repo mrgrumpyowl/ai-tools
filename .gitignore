@@ -1,0 +1,23 @@
+# Python testing
+Pipfile
+Pipfile.lock
+.test-plans
+*.pyc
+*.pyo
+__pycache__
+.tox
+*.egg-info
+.coverage
+.pytest_cache
+**/report.xml
+report.xml
+**/htmlcov/*
+# Local files
+.DS_Store
+._.DS_Store
+.librarian
+.idea
+.vscode
+.history
+**/venv
+
