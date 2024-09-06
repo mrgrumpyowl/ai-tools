@@ -4,6 +4,7 @@ import argparse
 import fnmatch
 import json
 import os
+import requests
 import sys
 import threading
 import tiktoken
@@ -12,8 +13,8 @@ import subprocess
 
 from datetime import datetime
 
-from openai import OpenAI
 from anthropic import Anthropic
+from openai import OpenAI
 
 from prompt_toolkit import prompt
 from prompt_toolkit import print_formatted_text
@@ -271,6 +272,84 @@ def parse_arguments():
     
     return parser.parse_args()
 
+def perform_web_search(query):
+    perplexity_api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not perplexity_api_key:
+        raise ValueError("PERPLEXITY_API_KEY environment variable is not set")
+    
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {perplexity_api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "llama-3.1-sonar-huge-128k-online",
+        "messages": [
+            {
+                "role": "system",
+                "content": "Be awesome. Think carefully."
+            },
+            {
+                "role": "user",
+                "content": query
+            }
+        ],
+        "temperature": 0.3
+    }
+    
+    response = requests.request("POST", url, json=payload, headers=headers)
+    print(response.text)
+    
+    if response.status_code == 200:
+        return response.json().get('answer', 'No answer found')
+    else:
+        raise Exception(f"Error from Perplexity API: {response.status_code} - {response.text}")
+
+def should_perform_web_search(content, selected_model, model_config, client):
+    """
+    Consult the selected language model to decide if a web search is beneficial.
+    """
+    decision_prompt = (
+        f"As an advanced AI model, analyze the following query and decide if it would benefit from real-time information via a web search. "
+        f"If yes, respond with 'YES: <query>'. If not, respond with 'NO'.\n\n"
+        f"Content: \"{content}\""
+    )
+    system_prompt = f"Assess if user queries require external web search to enhance responses."
+
+    oai_decision_messages = [
+        {"role": "system", "content": "Assess if user queries require external web search to enhance responses."},
+        {"role": "user", "content": decision_prompt}
+    ]
+
+    anth_system_prompt = system_prompt
+    anth_decision_messages = [
+        {"role": "user", "content": decision_prompt}
+    ]
+
+    if model_config["provider"] == "openai":
+        response = client.chat.completions.create(
+            model=selected_model,
+            messages=oai_decision_messages,
+            max_tokens=50,
+        )
+        model_output = response.choices[0].message.content.strip()
+
+    else:
+        response = client.messages.create(
+            model=selected_model,
+            messages=anth_decision_messages,
+            system=anth_system_prompt,
+            max_tokens=50,
+            temperature=model_config["temperature"],  # Use the model's temperature settings
+        )
+        model_output = response.content[0].text.strip()
+
+    if model_output.startswith("YES:"):
+        search_query = model_output.replace("YES: ", "")
+        return True, search_query
+    else:
+        return False, ""
+
 def main():
     args = parse_arguments()
 
@@ -358,13 +437,13 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
                         print(f"\nThe directory is too large to upload because it is likely larger than 100,000 tokens.\n"
                               f"Estimated token count for this recursive directory analysis: {token_count}\n")
                     if markdown_content:
-                        dir_analysis_request = (f"The following describes a directory stucture along with all its contents in "
-                                            f"Markdown format. "
-                                            f"Please carefully analyse the directory structure and the files contained within. Pay "
-                                            f"attention to whether the directory stucture looks like a code repository. Then take a "
-                                            f"deep breath and provide a brief summary of your analysis. End your response with an "
-                                            f"assurance that you have memorised the contents of the repository and you are ready to "
-                                            f"answer the user's questions.\n\n{markdown_content}")
+                        dir_analysis_request = (f"The following describes a directory structure along with all its contents in "
+                                                f"Markdown format. "
+                                                f"Please carefully analyse the directory structure and the files contained within. Pay "
+                                                f"attention to whether the directory structure looks like a code repository. Then take a "
+                                                f"deep breath and provide a brief summary of your analysis. End your response with an "
+                                                f"assurance that you have memorised the contents of the repository and you are ready to "
+                                                f"answer the user's questions.\n\n{markdown_content}")
                         append_message(messages, "user", dir_analysis_request)
                         print(f"\nEstimated token count for this recursive directory analysis: {token_count}\n")
                     else:
@@ -387,8 +466,25 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
                         print(f"Estimated token count for this file: {token_count}\n")
                         continue
             else:
-                append_message(messages, "user", content)
+                # Use the selected model to decide on web search necessity
+                web_search_needed, search_query = should_perform_web_search(content, selected_model, model_config, client)
 
+                response_content = ""
+                if web_search_needed:
+                    print("Web search in progress...")
+                    try:
+                        # Perform the web search with Perplexity API
+                        web_search_results = perform_web_search(search_query)
+                        response_content += f"Found online: {web_search_results}\n\n"
+                    except Exception as e:
+                        print(f"Error during web search: {e}")
+
+                # Append user query and optional web search result to the message history
+                append_message(messages, "user", content)
+                if response_content:
+                    append_message(messages, "assistant", response_content)
+
+            # Proceed with generating response from the selected model
             if model_config["provider"] == "openai":
                 stream = client.chat.completions.create(
                     model=selected_model,
@@ -410,10 +506,9 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
             console.print(f"\n[yellow underline]{friendly_name}:[/]")
             complete_message = ""
             with Live(Markdown(complete_message),
-                refresh_per_second=10,
-                console=console,
-                transient=False,
-            ) as live:
+                      refresh_per_second=10,
+                      console=console,
+                      transient=False) as live:
                 if model_config["provider"] == "openai":
                     for chunk in stream:
                         if chunk.choices[0].delta.content:
@@ -434,7 +529,7 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
             print(Rule(), "")
 
             save_chat(messages, todays_chat_dir)
-                
+
     except KeyboardInterrupt:
         print("\nInterrupted by user")
         try:
