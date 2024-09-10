@@ -269,7 +269,11 @@ def parse_arguments():
              "Available models:\n" +
              "\n".join(f"  - {model}" for model in get_model_list())
     )
-    
+    parser.add_argument(
+        "-ws", "--web-search",
+        action='store_true',
+        help="Enable web search functionality for answering queries."
+    )
     return parser.parse_args()
 
 def perform_web_search(query):
@@ -357,7 +361,7 @@ def should_perform_web_search(content, selected_model, model_config, client):
 def main():
     args = parse_arguments()
 
-    default_model = "gpt-4o-2024-08-06"
+    default_model = "chatgpt-4o-latest"
 
     if args.model_select:
         if args.model_select == 'show_menu':
@@ -377,6 +381,8 @@ def main():
         client = OpenAI()
     else:
         client = Anthropic()
+
+    web_search_enabled = args.web_search
 
     try:
         # Initialize and ensure chat history directories
@@ -472,31 +478,33 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
                         print(f"Estimated token count for this file: {token_count}\n")
                         continue
             else:
-                # Use the selected model to decide on web search necessity
-                web_search_needed, search_query = should_perform_web_search(content, selected_model, model_config, client)
-
-                response_content = ""
-                if web_search_needed:
-                    #console.print(f"\n[yellow underline]Perplexity:[/]")
-                    print("Web search in progress...\n")
-                    try:
-                        # Perform the web search with Perplexity API
-                        web_search_results = perform_web_search(search_query)
-                        response_content += f"<web-search-results> {web_search_results} </web-search-results>"
-                        #print(Markdown(web_search_results))
-                    except Exception as e:
-                        print(f"Error during web search: {e}")
-
-                # Append user query and optional web search result to the message history
                 append_message(messages, "user", content)
-                if response_content:
-                    append_message(messages, "assistant", response_content)
-                    websearch_analysis_request = (f"Thank you for carrying out a web search on my behalf with Perplexity. "
-                        f"The results of the Perplexity web search are contained in the <web-search-results> XML tag in your previous assistant content. "
-                        f"You will now take ownership of those <web-search-results> and present them to me, the user, as your own 'research'. "
-                        f"Now reflect on those <web-search-results> to augment and inform your own training data as you carefully provide an "
-                        f"excellent answer to my original query. Keep these <web-search-results> in mind as we continue our conversation.")
-                    append_message(messages, "user", websearch_analysis_request)
+
+                # Only perform web search if enabled
+                if web_search_enabled:
+                    # Use the selected model to decide on web search necessity
+                    web_search_needed, search_query = should_perform_web_search(content, selected_model, model_config, client)
+
+                    response_content = ""
+                    if web_search_needed:
+                        #console.print(f"\n[yellow underline]Perplexity:[/]")
+                        print("Web search in progress...\n")
+                        try:
+                            # Perform the web search with Perplexity API
+                            web_search_results = perform_web_search(search_query)
+                            response_content += f"<web-search-results> {web_search_results} </web-search-results>"
+                            #print(Markdown(web_search_results))
+                        except Exception as e:
+                            print(f"Error during web search: {e}")
+                
+                    if response_content:
+                        append_message(messages, "assistant", response_content)
+                        websearch_analysis_request = (f"Thank you for carrying out a web search on my behalf with Perplexity. "
+                            f"The results of the Perplexity web search are contained in the <web-search-results> XML tag in your previous assistant content. "
+                            f"You will now take ownership of those <web-search-results> and present them to me, the user, as your own 'research'. "
+                            f"Now reflect on those <web-search-results> to augment and inform your own training data as you carefully provide an "
+                            f"excellent answer to my original query. Keep these <web-search-results> in mind as we continue our conversation.")
+                        append_message(messages, "user", websearch_analysis_request)
 
             # Proceed with generating response from the selected model
             if model_config["provider"] == "openai":
