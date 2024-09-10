@@ -31,17 +31,17 @@ from model_config import get_model_list, get_model_config
 console = Console(highlight=False)
 current_chat_file = None
 
-def ensure_chat_history_dir():
-    """Ensures that the chat history directory exists."""
+def ensure_chat_history_dir(provider):
+    """Ensures that the chat history base directory exists for the specified provider."""
     home_dir = os.path.expanduser("~")
-    chat_history_base_dir = os.path.join(home_dir, '.chatbot', 'chat-history')
+    chat_history_base_dir = os.path.join(home_dir, '.chatbot', 'chat-history', provider)
     os.makedirs(chat_history_base_dir, exist_ok=True)
     return chat_history_base_dir
 
-def get_todays_chat_dir(base_dir):
+def get_todays_chat_dir(chat_history_base_dir):
     """Returns today's chat directory, creating it if necessary."""
     today = datetime.now().strftime("%Y-%m-%d")
-    todays_chat_dir = os.path.join(base_dir, today)
+    todays_chat_dir = os.path.join(chat_history_base_dir, today)
     os.makedirs(todays_chat_dir, exist_ok=True)
     return todays_chat_dir
 
@@ -61,10 +61,18 @@ def load_chat(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def select_chat_file(chat_dir):
+def select_chat_file(chat_history_base_dir, provider):
     """Provides a UI to select an old chat file from available files."""
+    
+    if provider == "openai":
+        provider_name = "OpenAI"
+    elif provider == "anthropic":
+        provider_name = "Anthropic"
+    else:
+        provider_name = "..."
+
     files = []
-    for subdir, dirs, files_in_dir in os.walk(chat_dir):
+    for subdir, dirs, files_in_dir in os.walk(chat_history_base_dir):
         for file in files_in_dir:
             if file.endswith('.json'):
                 full_path = os.path.join(subdir, file)
@@ -75,7 +83,7 @@ def select_chat_file(chat_dir):
         print("No previous chats available.")
         return None
 
-    console.print(f"[bold cyan]\nHere are the most recent chats (up to 20) sorted by most recent first:[/]")
+    console.print(f"[bold cyan]\nYour 20 most recent chats with {provider_name} models, sorted by most recent first:[/]")
     for idx, file in enumerate(files):
         display_name = os.path.splitext(os.path.basename(file))[0]
         print(f"{idx + 1}) {display_name}")
@@ -376,8 +384,9 @@ def main():
 
     model_config = get_model_config(selected_model)
     friendly_name = model_config["friendly_name"]
+    provider = model_config["provider"]
 
-    if model_config["provider"] == "openai":
+    if provider == "openai":
         client = OpenAI()
     else:
         client = Anthropic()
@@ -385,9 +394,9 @@ def main():
     web_search_enabled = args.web_search
 
     try:
-        # Initialize and ensure chat history directories
-        base_dir = ensure_chat_history_dir()
-        todays_chat_dir = get_todays_chat_dir(base_dir)
+        # Initialize and ensure chat history directories for the current provider and date
+        chat_history_base_dir = ensure_chat_history_dir(provider)
+        todays_chat_dir = get_todays_chat_dir(chat_history_base_dir)
 
         now = datetime.now()
         local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
@@ -399,8 +408,7 @@ def main():
 
         choice = main_menu()
         if choice == "2":
-            all_chats_dir = os.path.join(base_dir)
-            chat_file = select_chat_file(all_chats_dir)
+            chat_file = select_chat_file(chat_history_base_dir, provider)
             if chat_file:
                 messages = load_chat(chat_file)
             else:
@@ -408,7 +416,7 @@ def main():
                 return
         else:
             messages = []
-            if model_config["provider"] == "openai":
+            if provider == "openai":
                 messages.append({
                     "role": "system",
                     "content": (f"You are a helpful AI assistant. Today is {local_date}. Local time is {local_time}. "
@@ -504,16 +512,17 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
                             f"You will now take ownership of those <web-search-results> and present them to me, the user, as your own 'research'. "
                             f"Now reflect on those <web-search-results> to augment and inform your own training data as you carefully provide an "
                             f"excellent answer to my original query. Keep these <web-search-results> in mind as we continue our conversation.")
+
                         append_message(messages, "user", websearch_analysis_request)
 
             # Proceed with generating response from the selected model
-            if model_config["provider"] == "openai":
+            if provider == "openai":
                 stream = client.chat.completions.create(
                     model=selected_model,
                     messages=messages,
                     max_tokens=model_config["max_tokens"],
                     temperature=model_config["temperature"],
-                    stream=True,
+                    stream=True
                 )
             else:
                 stream = client.messages.create(
@@ -531,7 +540,7 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
                       refresh_per_second=10,
                       console=console,
                       transient=False) as live:
-                if model_config["provider"] == "openai":
+                if provider == "openai":
                     for chunk in stream:
                         if chunk.choices[0].delta.content:
                             complete_message += chunk.choices[0].delta.content
