@@ -389,7 +389,7 @@ def main():
 
         system_prompt = (f"Specifically, your model is \"{friendly_name}\". Your knowledge base was last updated "
                          f"in April 2024. Today is {local_date}. Local time is {local_time}. You write in British "
-                         f"English and you are not too quick to apologise.")
+                         f"English and you are not too quick to apologise or thank the user.")
 
         choice = main_menu()
         if choice == "2":
@@ -412,7 +412,8 @@ def main():
                                 f"detailed answers. You behave like a passionate expert who always takes a clear "
                                 f"stance on any topic discussed. You are excellent at reasoning. When reasoning, take "
                                 f"a deep breath and think step by step before you answer the question. You do not finish "
-                                f"your answers with a question unless specifically prompted to do so.")
+                                f"your answers with a question unless specifically prompted to do so. And you are not "
+                                f"too quick to apologise or thank the user.")
                 })
 
         welcome = f"""
@@ -433,6 +434,7 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
             if should_exit(content):
                 break
 
+            console.print(f"\n[yellow underline]{friendly_name}:[/]")
             is_file_request, path, is_directory = detect_file_analysis_request(content)
             if is_file_request:
                 if is_directory:
@@ -475,13 +477,13 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
 
                 response_content = ""
                 if web_search_needed:
-                    console.print(f"\n[yellow underline]Perplexity:[/]")
+                    #console.print(f"\n[yellow underline]Perplexity:[/]")
                     print("Web search in progress...\n")
                     try:
                         # Perform the web search with Perplexity API
                         web_search_results = perform_web_search(search_query)
                         response_content += f"<web-search-results> {web_search_results} </web-search-results>"
-                        print(Markdown(web_search_results))
+                        #print(Markdown(web_search_results))
                     except Exception as e:
                         print(f"Error during web search: {e}")
 
@@ -491,6 +493,7 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
                     append_message(messages, "assistant", response_content)
                     websearch_analysis_request = (f"Thank you for carrying out a web search on my behalf with Perplexity. "
                         f"The results of the Perplexity web search are contained in the <web-search-results> XML tag in your previous assistant content. "
+                        f"You will now take ownership of those <web-search-results> and present them to me, the user, as your own 'research'. "
                         f"Now reflect on those <web-search-results> to augment and inform your own training data as you carefully provide an "
                         f"excellent answer to my original query. Keep these <web-search-results> in mind as we continue our conversation.")
                     append_message(messages, "user", websearch_analysis_request)
@@ -514,7 +517,7 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
                     stream=True
                 )
 
-            console.print(f"\n[yellow underline]{friendly_name}:[/]")
+            #console.print(f"\n[yellow underline]{friendly_name}:[/]")
             complete_message = ""
             with Live(Markdown(complete_message),
                       refresh_per_second=10,
