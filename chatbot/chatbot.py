@@ -276,7 +276,11 @@ def perform_web_search(query):
     perplexity_api_key = os.getenv("PERPLEXITY_API_KEY")
     if not perplexity_api_key:
         raise ValueError("PERPLEXITY_API_KEY environment variable is not set")
-    
+
+    now = datetime.now()
+    local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
+    local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
+
     url = "https://api.perplexity.ai/chat/completions"
     headers = {
         "Authorization": f"Bearer {perplexity_api_key}",
@@ -298,10 +302,10 @@ def perform_web_search(query):
     }
     
     response = requests.request("POST", url, json=payload, headers=headers)
-    print(response.text)
     
     if response.status_code == 200:
-        return response.json().get('answer', 'No answer found')
+        content = response.json()['choices'][0]['message']['content'].strip()
+        return f"Found online today, {local_date}, at time {local_time}: {content}"
     else:
         raise Exception(f"Error from Perplexity API: {response.status_code} - {response.text}")
 
@@ -471,11 +475,13 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
 
                 response_content = ""
                 if web_search_needed:
-                    print("Web search in progress...")
+                    console.print(f"\n[yellow underline]Perplexity:[/]")
+                    print("Web search in progress...\n")
                     try:
                         # Perform the web search with Perplexity API
                         web_search_results = perform_web_search(search_query)
-                        response_content += f"Found online: {web_search_results}\n\n"
+                        response_content += f"<web-search-results> {web_search_results} </web-search-results>"
+                        print(Markdown(web_search_results))
                     except Exception as e:
                         print(f"Error during web search: {e}")
 
@@ -483,6 +489,11 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
                 append_message(messages, "user", content)
                 if response_content:
                     append_message(messages, "assistant", response_content)
+                    websearch_analysis_request = (f"Thank you for carrying out a web search on my behalf with Perplexity. "
+                        f"The results of the Perplexity web search are contained in the <web-search-results> XML tag in your previous assistant content. "
+                        f"Now reflect on those <web-search-results> to augment and inform your own training data as you carefully provide an "
+                        f"excellent answer to my original query. Keep these <web-search-results> in mind as we continue our conversation.")
+                    append_message(messages, "user", websearch_analysis_request)
 
             # Proceed with generating response from the selected model
             if model_config["provider"] == "openai":
