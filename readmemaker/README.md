@@ -16,7 +16,7 @@ This repository contains a Python script designed to automate the process of gen
 - An API key from OpenAI
 
 ## Setup
-
+<!-- markdownlint-disable MD029-->
 1. Ensure you have Python 3.6 or higher installed on your system.
 2. Install the required Python package using pip:
 
@@ -25,9 +25,11 @@ pip3 install openai
 ```
 
 3. Obtain an API key from [OpenAI](https://openai.com/) and configure it as per the `openai` package's documentation.
+<!-- markdownlint-enable MD029-->
 
 ## Usage
 
+<!-- markdownlint-disable MD029-->
 1. Clone this repository to your local machine.
 2. Run the script:
 
@@ -35,8 +37,9 @@ pip3 install openai
 python3 readmemaker.py
 ```
 
-3. The script will prompt you for the local root directory of the repository that you want to create a README for. 
+3. The script will prompt you for the local root directory of the repository that you want to create a README for.
 4. The script will recursively process all text files in the directory you provide, and its subdirectories, sending the combined content to OpenAI's API, which returns a generated README. This README will be saved as `README.md` in the same directory that you provided. Note that it will overwrite any existing `README.md` file that already exists in that directory.
+<!-- markdownlint-enable MD029-->
 
 ## Customization
 
@@ -49,6 +52,5 @@ Contributions are welcome! If you have suggestions for improvements or encounter
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
 
 This README.md template provides a basic structure for documenting the Python script's functionality, setup, usage, and customization options, along with sections for contributing and licensing. Adjust the content as necessary to fit the specific details and requirements of your project.

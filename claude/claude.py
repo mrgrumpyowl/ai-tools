@@ -70,7 +70,7 @@ def select_chat_file(chat_dir):
         print("No previous chats available.")
         return None
 
-    console.print(f"[bold cyan]\nHere are the most recent chats (up to 20) sorted by most recent first:[/]")
+    console.print("[bold cyan]\nHere are the most recent chats (up to 20) sorted by most recent first:[/]")
     for idx, file in enumerate(files):
         display_name = os.path.splitext(os.path.basename(file))[0]
         print(f"{idx + 1}) {display_name}")
@@ -97,7 +97,7 @@ def main_menu():
     """Show the main menu to the user and handle the choice."""
     first_menu = ("\n1) Start New Chat\n2) Resume Recent Chat")
     console.print(f"[bold blue]{first_menu}[/]")
-    choice = input(f"\nChoose (1-2): ")
+    choice = input("\nChoose (1-2): ")
     return choice.strip()
 
 def get_user_input() -> str:
@@ -188,9 +188,7 @@ def generate_markdown_from_directory(root_dir) -> tuple[str, int]:
                     markdown_output += f"## {relative_file_path}\n\n{enclosure}\n{content}\n{enclosure}\n\n"
                     token_count = estimate_token_count(markdown_output)
                     if token_count > 100000:
-                        markdown_output = f"DIRECTORY TOO BIG."
-                    else:
-                        markdown_output = markdown_output
+                        markdown_output = "DIRECTORY TOO BIG."
     return markdown_output, token_count
 
 def read_file_contents(file_path: str) -> tuple[str, str, int]:
@@ -202,11 +200,11 @@ def read_file_contents(file_path: str) -> tuple[str, str, int]:
                 return file_name, False, 0
             token_count = estimate_token_count(file_contents)
             if token_count > 64000:
-                return file_name, f"FILE TOO BIG.", token_count
+                return file_name, "FILE TOO BIG.", token_count
             return file_name, file_contents, token_count
     except Exception as e:
         print(f"\nError reading file: {e}")
-        return "", f'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
+        return "", 'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
 
 def estimate_token_count(content: str) -> int:
     # Returns the number of tokens as an int.
@@ -222,7 +220,7 @@ def append_message(messages: list, role: str, content: str):
 
 def spinner():
     spinner_chars = "|/-\\"
-    while not spinner_stop:
+    while not spinner_stop: #TODO This isn't actually defined anywhere?
         for char in spinner_chars:
             sys.stdout.write(char)
             sys.stdout.flush()
@@ -343,7 +341,7 @@ You can pass entire directories (recursively) to Claude by entering "Upload: ~/p
 
             append_message(messages, "assistant", complete_message)
 
-            print(f"\n")
+            print("\n")
             print(Rule(), "")
 
             save_chat(messages, todays_chat_dir)

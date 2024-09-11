@@ -9,7 +9,10 @@ Dates in this file are in format of YYYY-MM-DD (2019-12-13 means 13th of Decembe
 
 ## [Unreleased]
 
-### Changed 
+### Added
+* pip install capability for each individual project as well as a script that will install all projects. [@cloudymatt](https://github.com/cloudymatt)
+
+### Changed
 * chatbot: Significant change designed to make `chatbot` a universal chatbot capable of interfacing with a whole list of LLMs by both OpenAI and Anthropic. chatbot now supports args and offers a menu of models to choose from should the user wish. [@mrgrumpyowl](https://github.com/mrgrumpyowl)
 
 ## [[1.5.0]](https://github.com/mrgrumpyowl/ai-dev-tools/releases/tag/1.5.0) - 2024-08-26

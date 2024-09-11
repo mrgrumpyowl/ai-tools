@@ -2,6 +2,14 @@
 
 This project provides a simple CLI chat interface to interact with OpenAI's GPT-4 model. It utilizes the `openai` Python package to communicate with the GPT-4 API and provides a user-friendly command-line interface for submitting prompts and receiving responses.
 
+## Contributing
+
+Contributions are welcome! If you have suggestions for improvements or bug fixes, feel free to open an issue or submit a pull request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
 ## Features
 
 - Multiline input support for detailed prompts.
@@ -16,6 +24,7 @@ This project provides a simple CLI chat interface to interact with OpenAI's GPT-
 ## Prerequisites
 
 Before you start, ensure you have installed the following:
+
 - Python 3.10 or higher
 - `openai` Python package
 - `prompt_toolkit` Python package
@@ -26,7 +35,7 @@ Before you start, ensure you have installed the following:
 ## Installation
 
 ### Manual
-
+<!-- markdownlint-disable MD029-->
 1. Clone this repository to your local machine.
 2. Install the required Python packages by running:
 
@@ -36,6 +45,7 @@ pip3 install openai prompt_toolkit rich tiktoken
 
 3. Set up your OpenAI API key by following the instructions [here](https://openai.com/api/).
 4. Once you have your OpenAI API key, export your OpenAI key as an environment variable in `.zshrc` or `.bashrc` like this:
+<!-- markdownlint-enable MD029-->
 
 ```bash
 export OPENAI_API_KEY='sk-yourkeyhere'
@@ -59,7 +69,7 @@ Follow the on-screen instructions for submitting prompts to GPT-4.
 
 Nb. If you like the script and want to put it in the way of your PATH so that you can run it from wherever, just add a symbolic link pointing `/usr/local/bin`.
 
-For example (on MacOS): 
+For example (on MacOS):
 
 ```bash
 sudo ln -s /Users/username/mrgrumpyowl/ai-tools/chatbot/chatbot.py /usr/local/bin/chatbot
@@ -87,12 +97,3 @@ pip3 install ./ --upgrade
 ```
 
 >NOTE: You need to uninstall first if you already have it installed or pip will use the cached files from the last time you installed it.
-
-
-## Contributing
-
-Contributions are welcome! If you have suggestions for improvements or bug fixes, feel free to open an issue or submit a pull request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.

@@ -108,9 +108,8 @@ def generate_markdown_from_directory(root_dir) -> tuple[str, int]:
                     markdown_output += f"## {relative_file_path}\n\n{enclosure}\n{content}\n{enclosure}\n\n"
                     token_count = estimate_token_count(markdown_output)
                     if token_count > 26000:
-                        markdown_output = f"DIRECTORY TOO BIG."
-                    else:
-                        markdown_output = markdown_output
+                        markdown_output = "DIRECTORY TOO BIG."
+
     return markdown_output, token_count
 
 def read_file_contents(file_path: str) -> tuple[str, str, int]:
@@ -122,11 +121,11 @@ def read_file_contents(file_path: str) -> tuple[str, str, int]:
                 return file_name, False, 0
             token_count = estimate_token_count(file_contents)
             if token_count > 26000:
-                return file_name, f"FILE TOO BIG.", token_count
+                return file_name, "FILE TOO BIG.", token_count
             return file_name, file_contents, token_count
     except Exception as e:
         print(f"\nError reading file: {e}")
-        return "", f'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
+        return "", 'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
 
 def estimate_token_count(content: str) -> int:
     # Returns the number of tokens as an int.

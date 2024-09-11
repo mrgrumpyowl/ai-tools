@@ -1,6 +1,6 @@
 # AI Development Toolkit
 
-Welcome to the AI Development Toolkit repository. This toolkit is designed to facilitate the development, interaction, and deployment of AI models, through Python interface and automation scripts. It includes a fast, simple yet highly usable CLI Chat Interface for OpenAI's GPT-4o, Anthropic's Claude 3.5 Sonnet, and Mistral's Mixtral-8x7b. Plus a basic README Generator script to streamline project documentation processes. 
+Welcome to the AI Development Toolkit repository. This toolkit is designed to facilitate the development, interaction, and deployment of AI models, through Python interface and automation scripts. It includes a fast, simple yet highly usable CLI Chat Interface for OpenAI's GPT-4o, Anthropic's Claude 3.5 Sonnet, and Mistral's Mixtral-8x7b. Plus a basic README Generator script to streamline project documentation processes.
 
 ## Features
 
@@ -20,7 +20,7 @@ Welcome to the AI Development Toolkit repository. This toolkit is designed to fa
 - `openai` Python package for the README Generator
 
 ## Installation and Usage (Manual)
-
+<!-- markdownlint-disable MD029-->
 1. Clone this repository to your local machine.
 2. Install the required Python packages for the respective tools you intend to use:
 
@@ -36,7 +36,7 @@ pip3 install -r readmemaker_requirements.txt
    - Anthropic API key as per the instructions [here](https://docs.anthropic.com/en/api/getting-started).  
    - Groq's API key as per the instructions [here](https://console.groq.com/docs/quickstart).  
 
-4. Export your API key(s) as an environment variable. 
+4. Export your API key(s) as an environment variable.
 
 - `chatbot.py` leverages the OpenAI API so to use `chatbot` you would have to add the following to your `.bashrc` or `.zshrc` file:
 ```export OPENAI_API_KEY="your-unique-key-here"```
@@ -44,6 +44,7 @@ pip3 install -r readmemaker_requirements.txt
 ```export ANTHROPIC_API_KEY="your-unique-key-here"```
 - `groqbot.py` leverages the Groq API so to use `groqbat` you would have to add the following to your `.bashrc` or `.zshrc` file:
 ```export GROQ_API_KEY="your-unique-key-here"```
+<!-- markdownlint-enable MD029-->
 
 ### Usage
 

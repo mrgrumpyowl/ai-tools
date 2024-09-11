@@ -15,6 +15,7 @@ This project provides a simple CLI chat interface to interact with Anthropic's C
 ## Prerequisites
 
 Before you start, ensure you have installed the following:
+
 - Python 3.10 or higher
 - `anthropic` Python package
 - `prompt_toolkit` Python package
@@ -23,7 +24,7 @@ Before you start, ensure you have installed the following:
 - `tree` command-line utility
 
 ## Installation
-
+<!-- markdownlint-disable MD029-->
 1. Clone this repository to your local machine.
 2. Install the required Python packages by running:
 
@@ -33,8 +34,9 @@ pip3 install anthropic prompt_toolkit rich tiktoken
 
 3. Set up your Anthropic by following the instructions [here](https://anthropic.com/api/).
 4. Once you have your Anthropic, export your OpenAI key as an environment variable in `.zshrc` or `.bashrc` like this:
+<!-- markdownlint-enable MD029-->
 
-```
+```bash
 export ANTHROPIC_API_KEY='sk-ant-api-yourkeyhere'
 ```
 
@@ -46,9 +48,9 @@ To start the chat interface, navigate to the directory containing the script and
 chmod +x claude.py
 ```
 
-Then you can just run it with: 
+Then you can just run it with:
 
-```
+```bash
 ./claude.py
 ```
 
@@ -56,7 +58,7 @@ Follow the on-screen instructions for submitting prompts to Claude 3 Opus.
 
 Nb. If you like the script and want to put it in the way of your PATH so that you can run it from wherever, just add a symbolic link pointing `/usr/local/bin`.
 
-For example (on MacOS): 
+For example (on MacOS):
 
 ```bash
 sudo ln -s /Users/username/mrgrumpyowl/ai-tools/chatbot/claude.py /usr/local/bin/claude

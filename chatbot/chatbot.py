@@ -109,7 +109,7 @@ def main_menu():
     """Show the main menu to the user and handle the choice."""
     first_menu = ("\n1) Start New Chat\n2) Resume Recent Chat")
     console.print(f"[bold blue]{first_menu}[/]")
-    choice = input(f"\nChoose (1-2): ")
+    choice = input("\nChoose (1-2): ")
     return choice.strip()
 
 def get_user_input() -> str:
@@ -200,9 +200,8 @@ def generate_markdown_from_directory(root_dir) -> tuple[str, int]:
                     markdown_output += f"## {relative_file_path}\n\n{enclosure}\n{content}\n{enclosure}\n\n"
                     token_count = estimate_token_count(markdown_output)
                     if token_count > 100000:
-                        markdown_output = f"DIRECTORY TOO BIG."
-                    else:
-                        markdown_output = markdown_output
+                        markdown_output = "DIRECTORY TOO BIG."
+
     return markdown_output, token_count
 
 def read_file_contents(file_path: str) -> tuple[str, str, int]:
@@ -214,11 +213,11 @@ def read_file_contents(file_path: str) -> tuple[str, str, int]:
                 return file_name, False, 0
             token_count = estimate_token_count(file_contents)
             if token_count > 64000:
-                return file_name, f"FILE TOO BIG.", token_count
+                return file_name, "FILE TOO BIG.", token_count
             return file_name, file_contents, token_count
     except Exception as e:
         print(f"\nError reading file: {e}")
-        return "", f'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
+        return "", 'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
 
 def estimate_token_count(content: str) -> int:
     """Returns the number of tokens as an int."""
@@ -234,7 +233,7 @@ def append_message(messages: list, role: str, content: str):
 
 def spinner():
     spinner_chars = "|/-\\"
-    while not spinner_stop:
+    while not spinner_stop: #TODO This isn't actually defined anywhere?
         for char in spinner_chars:
             sys.stdout.write(char)
             sys.stdout.flush()
@@ -243,7 +242,7 @@ def spinner():
 
 def select_model():
     models = get_model_list()
-    console.print(f"[bold blue]\nAvailable models:[/]")
+    console.print("[bold blue]\nAvailable models:[/]")
     for idx, model in enumerate(models, 1):
         friendly_name = get_model_config(model)["friendly_name"]
         console.print(f"[bold blue]{idx}) {friendly_name}[/]")
@@ -260,8 +259,8 @@ def select_model():
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description=(f"Universal Chatbot - Chat with various AI models "
-            f"\nUse your own OpenAI and/or Anthropic API key to chat with their latest LLMs."),
+        description=("Universal Chatbot - Chat with various AI models "
+            "\nUse your own OpenAI and/or Anthropic API key to chat with their latest LLMs."),
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
@@ -329,7 +328,7 @@ def should_perform_web_search(content, selected_model, model_config, client):
         f"If yes, respond with 'YES: <query>'. If not, respond with 'NO'.\n\n"
         f"Content: \"{content}\""
     )
-    system_prompt = f"Assess if user queries require external web search to enhance responses."
+    system_prompt = "Assess if user queries require external web search to enhance responses."
 
     oai_decision_messages = [
         {"role": "system", "content": "Assess if user queries require external web search to enhance responses."},
@@ -506,11 +505,11 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
                 
                     if response_content:
                         append_message(messages, "assistant", response_content)
-                        websearch_analysis_request = (f"Thank you for carrying out a web search on my behalf with Perplexity. "
-                            f"The results of the Perplexity web search are contained in the <web-search-results> XML tag in your previous assistant content. "
-                            f"You will now take ownership of those <web-search-results> and present them to me, the user, as your own 'research'. "
-                            f"Now reflect on those <web-search-results> to augment and inform your own training data as you carefully provide an "
-                            f"excellent answer to my original query. Keep these <web-search-results> in mind as we continue our conversation.")
+                        websearch_analysis_request = ("Thank you for carrying out a web search on my behalf with Perplexity. "
+                            "The results of the Perplexity web search are contained in the <web-search-results> XML tag in your previous assistant content. "
+                            "You will now take ownership of those <web-search-results> and present them to me, the user, as your own 'research'. "
+                            "Now reflect on those <web-search-results> to augment and inform your own training data as you carefully provide an "
+                            "excellent answer to my original query. Keep these <web-search-results> in mind as we continue our conversation.")
 
                         append_message(messages, "user", websearch_analysis_request)
 
@@ -555,7 +554,7 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
 
             append_message(messages, "assistant", complete_message)
 
-            print(f"\n")
+            print("\n")
             print(Rule(), "")
 
             save_chat(messages, todays_chat_dir)
