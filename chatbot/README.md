@@ -25,6 +25,8 @@ Before you start, ensure you have installed the following:
 
 ## Installation
 
+### Manual
+
 1. Clone this repository to your local machine.
 2. Install the required Python packages by running:
 
@@ -35,7 +37,7 @@ pip3 install openai prompt_toolkit rich tiktoken
 3. Set up your OpenAI API key by following the instructions [here](https://openai.com/api/).
 4. Once you have your OpenAI API key, export your OpenAI key as an environment variable in `.zshrc` or `.bashrc` like this:
 
-```
+```bash
 export OPENAI_API_KEY='sk-yourkeyhere'
 ```
 
@@ -47,9 +49,9 @@ To start the chat interface, navigate to the directory containing the script and
 chmod +x chatbot.py
 ```
 
-Then you can just run it with: 
+Then you can just run it with:
 
-```
+```bash
 ./chatbot.py
 ```
 
@@ -62,6 +64,30 @@ For example (on MacOS):
 ```bash
 sudo ln -s /Users/username/mrgrumpyowl/ai-tools/chatbot/chatbot.py /usr/local/bin/chatbot
 ```
+
+### Pip install
+
+Latest:
+
+```bash
+pip3 install git+https://gitlab.com/williamhillplc/technical-services/public-cloud/python-packages/tf-plan-summary.git@master --upgrade
+```
+
+Specific Version:
+
+```bash
+pip3 install git+https://gitlab.com/williamhillplc/technical-services/public-cloud/python-packages/tf-plan-summary.git@1.0.0 --upgrade
+```
+
+Whatever the code currently looks like while you're developing it (and assuming you're cd'd into this directory):
+
+```bash
+pip3 uninstall tf-plan-summary
+pip3 install ./ --upgrade
+```
+
+>NOTE: You need to uninstall first if you already have it installed or pip will use the cached files from the last time you installed it.
+
 
 ## Contributing
 

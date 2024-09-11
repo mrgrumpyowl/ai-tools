@@ -19,7 +19,7 @@ Welcome to the AI Development Toolkit repository. This toolkit is designed to fa
 - `groq`, `prompt_toolkit`, `rich`, and `tiktoken` Python packages for the Mixtral-8x7b Chat Interface
 - `openai` Python package for the README Generator
 
-### Installation
+## Installation and Usage (Manual)
 
 1. Clone this repository to your local machine.
 2. Install the required Python packages for the respective tools you intend to use:
@@ -37,11 +37,12 @@ pip3 install -r readmemaker_requirements.txt
    - Groq's API key as per the instructions [here](https://console.groq.com/docs/quickstart).  
 
 4. Export your API key(s) as an environment variable. 
-- `chatbot.py` leverages the OpenAI API so to use `chatbot` you would have to add the following to your `.bashrc` or `.zshrc` file: 
+
+- `chatbot.py` leverages the OpenAI API so to use `chatbot` you would have to add the following to your `.bashrc` or `.zshrc` file:
 ```export OPENAI_API_KEY="your-unique-key-here"```
-- `claude.py` leverages the Anthropic API so to use `claude` you would have to add the following to your `.bashrc` or `.zshrc` file: 
+- `claude.py` leverages the Anthropic API so to use `claude` you would have to add the following to your `.bashrc` or `.zshrc` file:
 ```export ANTHROPIC_API_KEY="your-unique-key-here"```
-- `groqbot.py` leverages the Groq API so to use `groqbat` you would have to add the following to your `.bashrc` or `.zshrc` file: 
+- `groqbot.py` leverages the Groq API so to use `groqbat` you would have to add the following to your `.bashrc` or `.zshrc` file:
 ```export GROQ_API_KEY="your-unique-key-here"```
 
 ### Usage
@@ -93,3 +94,21 @@ Contributions to improve the toolkit or add new features are welcome. Please fee
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Installation and Usage (pip)
+
+You can install each project by navigating into its directory and running:
+
+```bash
+pip install .
+```
+
+Alternatively, you can run the `install_all` script:
+
+```bash
+python3 install_all.py
+```
+
+Either way, once done, each of the scripts can be invoked by name.
+
+For more detailed instructions on installing specific versions of the individual scripts, please refer to the `README.md` files in the subdirectories.

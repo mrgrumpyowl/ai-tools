@@ -1,4 +1,0 @@
-openai
-prompt_toolkit
-rich
-tiktoken

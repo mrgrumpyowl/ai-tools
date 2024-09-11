@@ -6,7 +6,6 @@ import json
 import os
 import requests
 import sys
-import threading
 import tiktoken
 import time
 import subprocess
