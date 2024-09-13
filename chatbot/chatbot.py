@@ -332,9 +332,15 @@ def should_perform_web_search(content, selected_model, model_config, client):
     )
     system_prompt = f"Assess if user queries require external web search to enhance responses."
 
+    combined_prompt = f"{system_prompt}\n\n{decision_prompt}"
+
     oai_decision_messages = [
         {"role": "system", "content": "Assess if user queries require external web search to enhance responses."},
         {"role": "user", "content": decision_prompt}
+    ]
+
+    oai_o1preview_decision_messages = [
+        {"role": "user", "content": combined_prompt}
     ]
 
     anth_system_prompt = system_prompt
@@ -342,7 +348,14 @@ def should_perform_web_search(content, selected_model, model_config, client):
         {"role": "user", "content": decision_prompt}
     ]
 
-    if model_config["provider"] == "openai":
+    if model_config["provider"] == "openai" and selected_model == "o1-preview":
+        response = client.chat.completions.create(
+            model=selected_model,
+            messages=oai_o1preview_decision_messages,
+        )
+        model_output = response.choices[0].message.content.strip()
+
+    elif model_config["provider"] == "openai":
         response = client.chat.completions.create(
             model=selected_model,
             messages=oai_decision_messages,
@@ -404,7 +417,11 @@ def main():
 
         system_prompt = (f"Specifically, your model is \"{friendly_name}\". Your knowledge base was last updated "
                          f"in April 2024. Today is {local_date}. Local time is {local_time}. You write in British "
-                         f"English and you are not too quick to apologise or thank the user.")
+                         f"English and you are not too quick to apologise or thank the user. You MUST format your "
+                         f"responses in Markdown syntax. Use `- ` for any unnumbered bullet point lists, as per "
+                         f"standard Markdown syntax.")
+
+        supports_system_message = model_config.get("supports_system_message", True)
 
         choice = main_menu()
         if choice == "2":
@@ -416,7 +433,7 @@ def main():
                 return
         else:
             messages = []
-            if provider == "openai":
+            if provider == "openai" and supports_system_message:
                 messages.append({
                     "role": "system",
                     "content": (f"You are a helpful AI assistant. Today is {local_date}. Local time is {local_time}. "
@@ -515,44 +532,75 @@ You can pass entire directories (recursively) by entering "Upload: ~/path/to/dir
 
                         append_message(messages, "user", websearch_analysis_request)
 
+            supports_streaming = model_config.get("supports_streaming", True)
+
             # Proceed with generating response from the selected model
             if provider == "openai":
-                stream = client.chat.completions.create(
-                    model=selected_model,
-                    messages=messages,
-                    max_tokens=model_config["max_tokens"],
-                    temperature=model_config["temperature"],
-                    stream=True
-                )
-            else:
-                stream = client.messages.create(
-                    model=selected_model,
-                    messages=messages,
-                    system=system_prompt,
-                    max_tokens=model_config["max_tokens"],
-                    temperature=model_config["temperature"],
-                    stream=True
-                )
+                if supports_streaming:
+                    # Streaming response for OpenAI models
+                    stream = client.chat.completions.create(
+                        model=selected_model,
+                        messages=messages,
+                        max_tokens=model_config["max_tokens"],
+                        temperature=model_config["temperature"],
+                        stream=True
+                    )
 
-            #console.print(f"\n[yellow underline]{friendly_name}:[/]")
-            complete_message = ""
-            with Live(Markdown(complete_message),
-                      refresh_per_second=10,
-                      console=console,
-                      transient=False) as live:
-                if provider == "openai":
-                    for chunk in stream:
-                        if chunk.choices[0].delta.content:
-                            complete_message += chunk.choices[0].delta.content
-                            live.update(Markdown(complete_message))
-                else:
-                    for chunk in stream:
-                        if chunk.type == "content_block_delta":
-                            if chunk.delta.text:
-                                complete_message += chunk.delta.text
+                    complete_message = ""
+                    with Live(Markdown(complete_message),
+                              refresh_per_second=10,
+                              console=console,
+                              transient=False) as live:
+                        for chunk in stream:
+                            if chunk.choices[0].delta.content:
+                                complete_message += chunk.choices[0].delta.content
                                 live.update(Markdown(complete_message))
-                        elif chunk.type == "message_stop":
-                            break
+                else:
+                    # Non-streaming response for OpenAI models
+                    response = client.chat.completions.create(
+                        model=selected_model,
+                        messages=messages,
+                        #max_completion_tokens=model_config["max_tokens"],
+                        temperature=model_config["temperature"]
+                    )
+                    complete_message = response.choices[0].message.content
+                    console.print(Markdown(complete_message))
+
+            else:
+                if supports_streaming:
+                    # Streaming response for Anthropic models
+                    stream = client.messages.create(
+                        model=selected_model,
+                        messages=messages,
+                        system=system_prompt,
+                        max_tokens=model_config["max_tokens"],
+                        temperature=model_config["temperature"],
+                        stream=True
+                    )
+
+                    complete_message = ""
+                    with Live(Markdown(complete_message),
+                              refresh_per_second=10,
+                              console=console,
+                              transient=False) as live:
+                        for chunk in stream:
+                            if chunk.type == "content_block_delta":
+                                if chunk.delta.text:
+                                    complete_message += chunk.delta.text
+                                    live.update(Markdown(complete_message))
+                            elif chunk.type == "message_stop":
+                                break
+                else:
+                    # Non-streaming response for Anthropic models
+                    response = client.messages.create(
+                        model=selected_model,
+                        messages=messages,
+                        system=system_prompt,
+                        max_tokens=model_config["max_tokens"],
+                        temperature=model_config["temperature"],
+                    )
+                    complete_message = response
+                    console.print(Markdown(complete_message))
 
             append_message(messages, "assistant", complete_message)
 
