@@ -17,6 +17,7 @@ This project provides a simple CLI chat interface to interact with OpenAI's GPT-
 
 Before you start, ensure you have installed the following:
 - Python 3.10 or higher
+- `anthropic` Python package
 - `openai` Python package
 - `prompt_toolkit` Python package
 - `rich` Python package

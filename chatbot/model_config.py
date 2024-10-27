@@ -39,7 +39,7 @@ MODEL_CONFIG = {
         "supports_system_message": True,
         "supports_streaming": True,
     },
-    "claude-3-5-sonnet-20240620": {
+    "claude-3-5-sonnet-20241022": {
         "friendly_name": "Claude 3.5 Sonnet",
         "max_tokens": 8192,
         "temperature": 0.5,
