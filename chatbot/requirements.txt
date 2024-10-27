@@ -1,0 +1,6 @@
+requests
+tiktoken
+anthropic
+openai
+prompt_toolkit
+rich
