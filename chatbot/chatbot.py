@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
+import argparse
 import fnmatch
 import json
 import os
+import requests
 import sys
-import threading
 import tiktoken
 import time
 import subprocess
 
 from datetime import datetime
 
+from anthropic import Anthropic
 from openai import OpenAI
 
 from prompt_toolkit import prompt
@@ -23,20 +25,22 @@ from rich.live import Live
 from rich.markdown import Markdown
 from rich.rule import Rule
 
+from model_config import get_model_list, get_model_config
+
 console = Console(highlight=False)
 current_chat_file = None
 
-def ensure_chat_history_dir():
-    """Ensures that the chat history directory exists."""
+def ensure_chat_history_dir(provider):
+    """Ensures that the chat history base directory exists for the specified provider."""
     home_dir = os.path.expanduser("~")
-    chat_history_base_dir = os.path.join(home_dir, '.chatbot', 'chat-history')
+    chat_history_base_dir = os.path.join(home_dir, '.chatbot', 'chat-history', provider)
     os.makedirs(chat_history_base_dir, exist_ok=True)
     return chat_history_base_dir
 
-def get_todays_chat_dir(base_dir):
+def get_todays_chat_dir(chat_history_base_dir):
     """Returns today's chat directory, creating it if necessary."""
     today = datetime.now().strftime("%Y-%m-%d")
-    todays_chat_dir = os.path.join(base_dir, today)
+    todays_chat_dir = os.path.join(chat_history_base_dir, today)
     os.makedirs(todays_chat_dir, exist_ok=True)
     return todays_chat_dir
 
@@ -56,10 +60,18 @@ def load_chat(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def select_chat_file(chat_dir):
+def select_chat_file(chat_history_base_dir, provider):
     """Provides a UI to select an old chat file from available files."""
+    
+    if provider == "openai":
+        provider_name = "OpenAI"
+    elif provider == "anthropic":
+        provider_name = "Anthropic"
+    else:
+        provider_name = "..."
+
     files = []
-    for subdir, dirs, files_in_dir in os.walk(chat_dir):
+    for subdir, dirs, files_in_dir in os.walk(chat_history_base_dir):
         for file in files_in_dir:
             if file.endswith('.json'):
                 full_path = os.path.join(subdir, file)
@@ -70,7 +82,7 @@ def select_chat_file(chat_dir):
         print("No previous chats available.")
         return None
 
-    console.print(f"[bold cyan]\nHere are the most recent chats (up to 20) sorted by most recent first:[/]")
+    console.print(f"[bold cyan]\nYour 20 most recent chats with {provider_name} models, sorted by most recent first:[/]")
     for idx, file in enumerate(files):
         display_name = os.path.splitext(os.path.basename(file))[0]
         print(f"{idx + 1}) {display_name}")
@@ -97,7 +109,7 @@ def main_menu():
     """Show the main menu to the user and handle the choice."""
     first_menu = ("\n1) Start New Chat\n2) Resume Recent Chat")
     console.print(f"[bold blue]{first_menu}[/]")
-    choice = input(f"\nChoose (1-2): ")
+    choice = input("\nChoose (1-2): ")
     return choice.strip()
 
 def get_user_input() -> str:
@@ -188,9 +200,8 @@ def generate_markdown_from_directory(root_dir) -> tuple[str, int]:
                     markdown_output += f"## {relative_file_path}\n\n{enclosure}\n{content}\n{enclosure}\n\n"
                     token_count = estimate_token_count(markdown_output)
                     if token_count > 100000:
-                        markdown_output = f"DIRECTORY TOO BIG."
-                    else:
-                        markdown_output = markdown_output
+                        markdown_output = "DIRECTORY TOO BIG."
+
     return markdown_output, token_count
 
 def read_file_contents(file_path: str) -> tuple[str, str, int]:
@@ -202,11 +213,11 @@ def read_file_contents(file_path: str) -> tuple[str, str, int]:
                 return file_name, False, 0
             token_count = estimate_token_count(file_contents)
             if token_count > 64000:
-                return file_name, f"FILE TOO BIG.", token_count
+                return file_name, "FILE TOO BIG.", token_count
             return file_name, file_contents, token_count
     except Exception as e:
         print(f"\nError reading file: {e}")
-        return "", f'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
+        return "", 'I attempted to upload a file but it failed. For your next response reply ONLY: "No file was uploaded."', 0
 
 def estimate_token_count(content: str) -> int:
     """Returns the number of tokens as an int."""
@@ -222,37 +233,223 @@ def append_message(messages: list, role: str, content: str):
 
 def spinner():
     spinner_chars = "|/-\\"
-    while not spinner_stop:
+    while not spinner_stop: #TODO This isn't actually defined anywhere?
         for char in spinner_chars:
             sys.stdout.write(char)
             sys.stdout.flush()
             time.sleep(0.1)
             sys.stdout.write("\b")
 
-def main():
-    try:
-        client = OpenAI()
+def select_model():
+    models = get_model_list()
+    console.print("[bold blue]\nAvailable models:[/]")
+    for idx, model in enumerate(models, 1):
+        friendly_name = get_model_config(model)["friendly_name"]
+        console.print(f"[bold blue]{idx}) {friendly_name}[/]")
+    
+    while True:
+        try:
+            choice = int(input("\nSelect a model (enter the number): "))
+            if 1 <= choice <= len(models):
+                return models[choice - 1]
+            else:
+                print("Invalid choice. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
 
-        # Initialize and ensure chat history directories
-        base_dir = ensure_chat_history_dir()
-        todays_chat_dir = get_todays_chat_dir(base_dir)
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description=("Universal Chatbot - Chat with various AI models "
+            "\nUse your own OpenAI and/or Anthropic API key to chat with their latest LLMs."),
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        "-m", "--model-select",
+        nargs='?',
+        const='show_menu',
+        metavar="MODEL",
+        help="Select the AI model to use. Options:\n"
+             "  - Specify a model name directly\n"
+             "  - Use without a value to show the model selection menu\n"
+             "  - Omit to use the default model (gpt-4o-2024-08-06)\n"
+             "Available models:\n" +
+             "\n".join(f"  - {model}" for model in get_model_list())
+    )
+    parser.add_argument(
+        "-ws", "--web-search",
+        action='store_true',
+        help="Enable web search functionality for answering queries."
+    )
+    return parser.parse_args()
+
+def perform_web_search(query):
+    perplexity_api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not perplexity_api_key:
+        raise ValueError("PERPLEXITY_API_KEY environment variable is not set")
+
+    now = datetime.now()
+    local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
+    local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
+
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {perplexity_api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "llama-3.1-sonar-huge-128k-online",
+        "messages": [
+            {
+                "role": "system",
+                "content": "Be awesome. Think carefully."
+            },
+            {
+                "role": "user",
+                "content": query
+            }
+        ],
+        "temperature": 0.3
+    }
+    
+    response = requests.request("POST", url, json=payload, headers=headers)
+    
+    if response.status_code == 200:
+        content = response.json()['choices'][0]['message']['content'].strip()
+        return f"Found online today, {local_date}, at time {local_time}: {content}"
+    else:
+        raise Exception(f"Error from Perplexity API: {response.status_code} - {response.text}")
+
+def should_perform_web_search(content, selected_model, model_config, client):
+    """
+    Consult the selected language model to decide if a web search is beneficial.
+    """
+    decision_prompt = (
+        f"As an advanced AI model, analyze the following query and decide if it would benefit from real-time information via a web search. "
+        f"If yes, respond with 'YES: <query>'. If not, respond with 'NO'.\n\n"
+        f"Content: \"{content}\""
+    )
+    system_prompt = "Assess if user queries require external web search to enhance responses."
+
+    combined_prompt = f"{system_prompt}\n\n{decision_prompt}"
+
+    oai_decision_messages = [
+        {"role": "system", "content": "Assess if user queries require external web search to enhance responses."},
+        {"role": "user", "content": decision_prompt}
+    ]
+
+    oai_o1preview_decision_messages = [
+        {"role": "user", "content": combined_prompt}
+    ]
+
+    anth_system_prompt = system_prompt
+    anth_decision_messages = [
+        {"role": "user", "content": decision_prompt}
+    ]
+
+    if model_config["provider"] == "openai" and selected_model == "o1-preview":
+        response = client.chat.completions.create(
+            model=selected_model,
+            messages=oai_o1preview_decision_messages,
+        )
+        model_output = response.choices[0].message.content.strip()
+
+    elif model_config["provider"] == "openai":
+        response = client.chat.completions.create(
+            model=selected_model,
+            messages=oai_decision_messages,
+            max_tokens=50,
+        )
+        model_output = response.choices[0].message.content.strip()
+
+    else:
+        response = client.messages.create(
+            model=selected_model,
+            messages=anth_decision_messages,
+            system=anth_system_prompt,
+            max_tokens=50,
+            temperature=model_config["temperature"],  # Use the model's temperature settings
+        )
+        model_output = response.content[0].text.strip()
+
+    if model_output.startswith("YES:"):
+        search_query = model_output.replace("YES: ", "")
+        return True, search_query
+    else:
+        return False, ""
+
+def check_web_search_availability(web_search_requested):
+    """
+    Check if web search is available based on environment variables and user request.
+    Returns whether web search should be enabled.
+    """
+    if not web_search_requested:
+        return False
+
+    perplexity_api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not perplexity_api_key:
+        console.print("[yellow]Web search feature is not available: PERPLEXITY_API_KEY environment variable is not set.[/]")
+        console.print("[yellow]Continuing in normal mode...[/]")
+        return False
+
+    return True
+
+def main():
+    args = parse_arguments()
+    web_search_enabled = check_web_search_availability(args.web_search)
+    default_model = "chatgpt-4o-latest"
+
+    if args.model_select:
+        if args.model_select == 'show_menu':
+            selected_model = select_model()
+        elif args.model_select in get_model_list():
+            selected_model = args.model_select
+        else:
+            print(f"Invalid model: {args.model_select}")
+            selected_model = select_model()
+    else:
+        selected_model = default_model
+
+    model_config = get_model_config(selected_model)
+    friendly_name = model_config["friendly_name"]
+    training_cutoff = model_config["training_cutoff"]
+    provider = model_config["provider"]
+
+    if provider == "openai":
+        client = OpenAI()
+    else:
+        client = Anthropic()
+
+    web_search_enabled = args.web_search
+
+    try:
+        # Initialize and ensure chat history directories for the current provider and date
+        chat_history_base_dir = ensure_chat_history_dir(provider)
+        todays_chat_dir = get_todays_chat_dir(chat_history_base_dir)
 
         now = datetime.now()
         local_date = now.strftime("%a %d %b %Y")  # e.g., "Fri 16 Feb 2024"
         local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
 
+        system_prompt = (f"Specifically, your model is \"{friendly_name}\". Your knowledge base was last updated "
+                         f"in {training_cutoff}. Today is {local_date}. Local time is {local_time}. You write in British "
+                         f"English and you are not too quick to apologise or thank the user. You MUST format your "
+                         f"responses in Markdown syntax. Use `- ` for any unnumbered bullet point lists, as per "
+                         f"standard Markdown syntax.")
+
+        supports_system_message = model_config.get("supports_system_message", True)
+
         choice = main_menu()
         if choice == "2":
-            all_chats_dir = os.path.join(base_dir)  # Adjusted for browsing all directories
-            chat_file = select_chat_file(all_chats_dir)
+            chat_file = select_chat_file(chat_history_base_dir, provider)
             if chat_file:
                 messages = load_chat(chat_file)
             else:
                 print("No chat selected or file not found.")
                 return
         else:
-            messages = [
-                {
+            messages = []
+            if provider == "openai" and supports_system_message:
+                messages.append({
                     "role": "system",
                     "content": (f"You are a helpful AI assistant. Today is {local_date}. Local time is {local_time}. "
                                 f"You answer queries succinctly, avoiding preamble and summaries whenever possible. "
@@ -261,30 +458,29 @@ def main():
                                 f"detailed answers. You behave like a passionate expert who always takes a clear "
                                 f"stance on any topic discussed. You are excellent at reasoning. When reasoning, take "
                                 f"a deep breath and think step by step before you answer the question. You do not finish "
-                                f"your answers with a question unless specifically prompted to do so.")
-                }
-            ]
+                                f"your answers with a question unless specifically prompted to do so. And you are not "
+                                f"too quick to apologise or thank the user.")
+                })
 
-        welcome = (
-"""
-You're now chatting with GPT-4o.
+        welcome = f"""
+You're now chatting with {friendly_name}.
 The user prompt handles multiline input, so Enter gives a newline.
-To submit your prompt to GPT-4 hit Esc -> Enter.
+To submit your prompt hit Esc -> Enter.
 To exit gracefully simply submit the word: "exit", or hit Ctrl+C.
 
-You can pass individual utf-8 encoded files to GPT-4 by entering "Upload: ~/path/to/file_name"
-You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/path/to/directory"
+You can pass individual utf-8 encoded files by entering "Upload: ~/path/to/file_name"
+You can pass entire directories (recursively) by entering "Upload: ~/path/to/directory"
 """
-        )
 
         console.print(f"[bold blue]{welcome}[/]")
-
+        
         while True:
             content = get_user_input()
 
             if should_exit(content):
                 break
 
+            console.print(f"\n[yellow underline]{friendly_name}:[/]")
             is_file_request, path, is_directory = detect_file_analysis_request(content)
             if is_file_request:
                 if is_directory:
@@ -293,13 +489,13 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
                         print(f"\nThe directory is too large to upload because it is likely larger than 100,000 tokens.\n"
                               f"Estimated token count for this recursive directory analysis: {token_count}\n")
                     if markdown_content:
-                        dir_analysis_request = (f"The following describes a directory stucture along with all its contents in "
-                                            f"Markdown format. "
-                                            f"Please carefully analyse the directory structure and the files contained within. Pay "
-                                            f"attention to whether the directory stucture looks like a code repository. Then take a "
-                                            f"deep breath and provide a brief summary of your analysis. End your response with an "
-                                            f"assurance that you have memorised the contents of the repository and you are ready to "
-                                            f"answer the user's questions.\n\n{markdown_content}")
+                        dir_analysis_request = (f"The following describes a directory structure along with all its contents in "
+                                                f"Markdown format. "
+                                                f"Please carefully analyse the directory structure and the files contained within. Pay "
+                                                f"attention to whether the directory structure looks like a code repository. Then take a "
+                                                f"deep breath and provide a brief summary of your analysis. End your response with an "
+                                                f"assurance that you have memorised the contents of the repository and you are ready to "
+                                                f"answer the user's questions.\n\n{markdown_content}")
                         append_message(messages, "user", dir_analysis_request)
                         print(f"\nEstimated token count for this recursive directory analysis: {token_count}\n")
                     else:
@@ -324,28 +520,106 @@ You can pass entire directories (recursively) to GPT-4 by entering "Upload: ~/pa
             else:
                 append_message(messages, "user", content)
 
-            stream = client.chat.completions.create(
-                model="gpt-4o-2024-08-06",
-                messages=messages,
-                max_tokens=16384,
-                temperature=1.05,
-                stream=True,
-            )
-            console.print("\n[magenta underline]GPT-4o:[/]")
-            complete_message = ""
-            with Live(Markdown(complete_message),
-                refresh_per_second=10,
-                console=console,
-                transient=False,
-            ) as live:
-                for chunk in stream:
-                    if chunk.choices[0].delta.content:
-                        complete_message += chunk.choices[0].delta.content
-                        live.update(Markdown(complete_message))
+                # Only perform web search if enabled
+                if web_search_enabled:
+                    # Use the selected model to decide on web search necessity
+                    web_search_needed, search_query = should_perform_web_search(content, selected_model, model_config, client)
+
+                    response_content = ""
+                    if web_search_needed:
+                        #console.print(f"\n[yellow underline]Perplexity:[/]")
+                        print("Web search in progress...\n")
+                        try:
+                            # Perform the web search with Perplexity API
+                            web_search_results = perform_web_search(search_query)
+                            response_content += f"<web-search-results> {web_search_results} </web-search-results>"
+                            #print(Markdown(web_search_results))
+                        except Exception as e:
+                            print(f"Error during web search: {e}")
+                
+                    if response_content:
+                        append_message(messages, "assistant", response_content)
+                        websearch_analysis_request = ("Thank you for carrying out a web search on my behalf with Perplexity. "
+                            "The results of the Perplexity web search are contained in the <web-search-results> XML tag in your previous assistant content. "
+                            "You will now take ownership of those <web-search-results> and present them to me, the user, as your own 'research'. "
+                            "Now reflect on those <web-search-results> to augment and inform your own training data as you carefully provide an "
+                            "excellent answer to my original query. Keep these <web-search-results> in mind as we continue our conversation.")
+
+                        append_message(messages, "user", websearch_analysis_request)
+
+            supports_streaming = model_config.get("supports_streaming", True)
+
+            # Proceed with generating response from the selected model
+            if provider == "openai":
+                if supports_streaming:
+                    # Streaming response for OpenAI models
+                    stream = client.chat.completions.create(
+                        model=selected_model,
+                        messages=messages,
+                        max_tokens=model_config["max_tokens"],
+                        temperature=model_config["temperature"],
+                        stream=True
+                    )
+
+                    complete_message = ""
+                    with Live(Markdown(complete_message),
+                              refresh_per_second=10,
+                              console=console,
+                              transient=False) as live:
+                        for chunk in stream:
+                            if chunk.choices[0].delta.content:
+                                complete_message += chunk.choices[0].delta.content
+                                live.update(Markdown(complete_message))
+                else:
+                    # Non-streaming response for OpenAI models
+                    response = client.chat.completions.create(
+                        model=selected_model,
+                        messages=messages,
+                        #max_completion_tokens=model_config["max_tokens"],
+                        temperature=model_config["temperature"]
+                    )
+                    complete_message = response.choices[0].message.content
+                    console.print(Markdown(complete_message))
+
+            else:
+                if supports_streaming:
+                    # Streaming response for Anthropic models
+                    stream = client.messages.create(
+                        model=selected_model,
+                        messages=messages,
+                        system=system_prompt,
+                        max_tokens=model_config["max_tokens"],
+                        temperature=model_config["temperature"],
+                        stream=True
+                    )
+
+                    complete_message = ""
+                    with Live(Markdown(complete_message),
+                              refresh_per_second=10,
+                              console=console,
+                              transient=False) as live:
+                        for chunk in stream:
+                            if chunk.type == "content_block_delta":
+                                if chunk.delta.text:
+                                    complete_message += chunk.delta.text
+                                    live.update(Markdown(complete_message))
+                            elif chunk.type == "message_stop":
+                                break
+                else:
+                    # Non-streaming response for Anthropic models
+                    response = client.messages.create(
+                        model=selected_model,
+                        messages=messages,
+                        system=system_prompt,
+                        max_tokens=model_config["max_tokens"],
+                        temperature=model_config["temperature"],
+                    )
+                    complete_message = response
+                    console.print(Markdown(complete_message))
 
             append_message(messages, "assistant", complete_message)
 
-            print(f"\n")
+            print("\n")
             print(Rule(), "")
 
             save_chat(messages, todays_chat_dir)
