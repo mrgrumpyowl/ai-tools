@@ -11,6 +11,7 @@ Dates in this file are in format of YYYY-MM-DD (2019-12-13 means 13th of Decembe
 
 ### Added
 * pip install capability for each individual project as well as a script that will install all projects. [@cloudymatt](https://github.com/cloudymatt)
+* chatbot: New web-search option that relies on the Perplexity API. [@mrgrumpyowl](https://github.com/mrgrumpyowl)
 
 ### Changed
 * chatbot: Significant change designed to make `chatbot` a universal chatbot capable of interfacing with a whole list of LLMs by both OpenAI and Anthropic. chatbot now supports args and offers a menu of models to choose from should the user wish. [@mrgrumpyowl](https://github.com/mrgrumpyowl)

@@ -1,6 +1,6 @@
-requests
-tiktoken
 anthropic
 openai
 prompt_toolkit
+requests
 rich
+tiktoken

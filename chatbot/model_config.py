@@ -6,6 +6,7 @@ MODEL_CONFIG = {
         "provider": "openai",
         "supports_system_message": False,
         "supports_streaming": False,
+        "training_cutoff": "October 2023"
     },
     "chatgpt-4o-latest": {
         "friendly_name": "GPT-4o (tracking latest)",
@@ -14,6 +15,7 @@ MODEL_CONFIG = {
         "provider": "openai",
         "supports_system_message": True,
         "supports_streaming": True,
+        "training_cutoff": "October 2023"
     },
     "gpt-4o-2024-08-06": {
         "friendly_name": "GPT-4o (2024/8/6 snapshot)",
@@ -22,6 +24,7 @@ MODEL_CONFIG = {
         "provider": "openai",
         "supports_system_message": True,
         "supports_streaming": True,
+        "training_cutoff": "October 2023"
     },
     "gpt-4o-mini": {
         "friendly_name": "GPT-4o-mini",
@@ -30,6 +33,7 @@ MODEL_CONFIG = {
         "provider": "openai",
         "supports_system_message": True,
         "supports_streaming": True,
+        "training_cutoff": "October 2023"
     },
     "gpt-4-turbo": {
         "friendly_name": "GPT-4-Turbo",
@@ -38,14 +42,25 @@ MODEL_CONFIG = {
         "provider": "openai",
         "supports_system_message": True,
         "supports_streaming": True,
+        "training_cutoff": "December 2023"
     },
-    "claude-3-5-sonnet-20241022": {
-        "friendly_name": "Claude 3.5 Sonnet",
+    "claude-3-5-haiku-20241022": {
+        "friendly_name": "Claude 3.5 Haiku",
         "max_tokens": 8192,
         "temperature": 0.5,
         "provider": "anthropic",
         "supports_system_message": False,
         "supports_streaming": True,
+        "training_cutoff": "July 2024"
+    },
+    "claude-3-5-sonnet-20241022": {
+        "friendly_name": "Claude 3.5 Sonnet v2",
+        "max_tokens": 8192,
+        "temperature": 0.5,
+        "provider": "anthropic",
+        "supports_system_message": False,
+        "supports_streaming": True,
+        "training_cutoff": "April 2024"
     },
     "claude-3-opus-20240229": {
         "friendly_name": "Claude 3 Opus",
@@ -54,6 +69,7 @@ MODEL_CONFIG = {
         "provider": "anthropic",
         "supports_system_message": False,
         "supports_streaming": True,
+        "training_cutoff": "August 2023"
     },
 }
 

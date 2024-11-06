@@ -377,9 +377,25 @@ def should_perform_web_search(content, selected_model, model_config, client):
     else:
         return False, ""
 
+def check_web_search_availability(web_search_requested):
+    """
+    Check if web search is available based on environment variables and user request.
+    Returns whether web search should be enabled.
+    """
+    if not web_search_requested:
+        return False
+
+    perplexity_api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not perplexity_api_key:
+        console.print("[yellow]Web search feature is not available: PERPLEXITY_API_KEY environment variable is not set.[/]")
+        console.print("[yellow]Continuing in normal mode...[/]")
+        return False
+
+    return True
+
 def main():
     args = parse_arguments()
-
+    web_search_enabled = check_web_search_availability(args.web_search)
     default_model = "chatgpt-4o-latest"
 
     if args.model_select:
@@ -395,6 +411,7 @@ def main():
 
     model_config = get_model_config(selected_model)
     friendly_name = model_config["friendly_name"]
+    training_cutoff = model_config["training_cutoff"]
     provider = model_config["provider"]
 
     if provider == "openai":
@@ -414,7 +431,7 @@ def main():
         local_time = now.strftime("%H:%M:%S %Z")  # e.g., "22:41:47 GMT+0000"
 
         system_prompt = (f"Specifically, your model is \"{friendly_name}\". Your knowledge base was last updated "
-                         f"in April 2024. Today is {local_date}. Local time is {local_time}. You write in British "
+                         f"in {training_cutoff}. Today is {local_date}. Local time is {local_time}. You write in British "
                          f"English and you are not too quick to apologise or thank the user. You MUST format your "
                          f"responses in Markdown syntax. Use `- ` for any unnumbered bullet point lists, as per "
                          f"standard Markdown syntax.")
