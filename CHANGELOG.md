@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Dates in this file are in format of YYYY-MM-DD (2019-12-13 means 13th of December 2019).
 
-## [Unreleased]
+## [[1.6.0]](https://github.com/mrgrumpyowl/ai-dev-tools/releases/tag/1.6.0) - 2024-11-06
 
 ### Added
 * pip install capability for each individual project as well as a script that will install all projects. [@cloudymatt](https://github.com/cloudymatt)
